@@ -62,13 +62,9 @@ $file = date('His');
 $file .= '_' . str_replace('.', '-', $_SERVER['REMOTE_ADDR']);
 
 $upload_dir = $upload_folder . '/' . $file;
-if (!is_dir($upload_dir)) {
-    mkdir($upload_dir);
-}
-
 
 if (strlen($_FILES['files']['name']) > 1) {
-    if (move_uploaded_file($_FILES['files']['tmp_name'], $upload_dir . "/file.zip")) {
+    if (move_uploaded_file($_FILES['files']['tmp_name'], $upload_dir . ".zip")) {
         die(json_encode(array("success" => "Folder is successfully uploaded")));
     } else {
         die(json_encode(array(
