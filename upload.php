@@ -46,15 +46,15 @@ $upload_folder = dirname(__FILE__) . "/upload_folder";
 if (!is_dir($upload_folder)) {
     mkdir($upload_folder);
 }
+$upload_folder .= '/' . date('Ymd');
+if (!is_dir($upload_folder)) {
+    mkdir($upload_folder);
+}
 $upload_folder .= '/' . str_replace(' ', '-', $classe);
 if (!is_dir($upload_folder)) {
     mkdir($upload_folder);
 }
 $upload_folder .= '/' . str_replace(' ', '-', strtr($nom_prenom, $accented_array));
-if (!is_dir($upload_folder)) {
-    mkdir($upload_folder);
-}
-$upload_folder .= '/' . date('Ymd');
 if (!is_dir($upload_folder)) {
     mkdir($upload_folder);
 }
