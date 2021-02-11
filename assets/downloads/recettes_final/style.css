@@ -1,0 +1,163 @@
+@font-face {
+  font-family: lato;
+  src: url(Lato/Lato-Regular.ttf);
+}
+
+body {
+  font-family: lato;
+  font-size: 12pt;
+  margin: 0;
+}
+
+header, footer {
+  background-color: #000;
+  color: #fff;
+  padding: 10px;
+}
+
+header {
+  top: 0;
+}
+
+header nav span {
+  font-weight: bold;
+}
+
+header nav ul {
+  list-style: none;
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+}
+
+header nav ul li {
+  display: inline;
+  margin: 0 10px;
+}
+
+header nav a, footer a {
+  text-decoration: none;
+  color: #ccc;
+}
+
+header nav a:hover, footer a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+aside {
+	background-color: #eee;
+	padding: 20px;
+	border: #666 solid 1px;
+}
+
+main, aside {
+  width: 800px;
+  margin: 20px auto;
+}
+
+main h1 {
+  color: #517b27;
+  text-align: center;
+}
+
+main h2 {
+  color: #7b5127;
+  text-align: center;
+}
+
+main h3 {
+  color: #51277b;
+}
+
+main h4 {
+  color: #51727b;
+}
+
+main a, aside a {
+  color: #20839e;
+  text-decoration: none;
+}
+
+main a:hover, aside a:hover {
+  color: #2e70ff;
+  text-decoration: underline;
+}
+
+main figure {
+  text-align: center;
+}
+
+main figure figcaption {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.liens {
+  margin: 0 auto;
+  width: 440px;
+}
+
+.liens div {
+	display: inline-block;
+	padding: 8px;
+  border: #333 solid 1px;
+  border-radius: 5px;
+	width: 200px;
+}
+
+.liens div h5 {
+  margin: 5px 0;
+  text-align: center;
+}
+
+.infos {
+	list-style: none;
+	padding: 0;
+	display: flex;
+}
+
+.infos li {
+  width: 25%;
+  text-align: center;
+}
+
+.infos li strong {
+  display: block;
+}
+
+.infos li:nth-child(1) {
+	background: url(images/difficulte.svg) left center no-repeat;
+}
+
+.infos li:nth-child(2) {
+	background: url(images/preparation.svg) left center no-repeat;
+}
+
+.infos li:nth-child(3) {
+	background: url(images/cuisson.svg) left center no-repeat;
+}
+
+.infos li:nth-child(4) {
+	background: url(images/temps.svg) left center no-repeat;
+}
+
+main article, main section {
+  margin: 30px 0;
+}
+
+main section {
+  padding: 10px;
+  border-top: 2px solid;
+  border-bottom: 5px solid;
+  border-left: 1px solid;
+  border-right: 1px solid;
+}
+
+footer {
+  text-align: center;
+}
+
+footer p {
+  margin: 0;
+}

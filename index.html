@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload your work</title>
+  <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+  <main class="container my-5">
+    <h1>Envoi de travaux d'un dossier</h1>
+    <p>Mettre votre travail dans un dossier puis l'envoyer.</p>
+    <form id="form" action="upload.php" method="post" enctype="multipart/form-data">
+      <div class="my-2">
+        <label for="nom_prenom">Nom & Prénom</label>
+        <input id="nom_prenom" type="text" name="nom_prenom" class="form-control" list="eleves">
+        <datalist id="eleves">
+          <option value="Adem Ben Jaafar"></option>
+          <option value="Adem Moussa"></option>
+          <option value="Adem Khalifa Mhiri"></option>
+          <option value="Ahmed Khadrouf"></option>
+          <option value="Amir Boujnah"></option>
+          <option value="Aymen Slim"></option>
+          <option value="Aymen Falleh"></option>
+          <option value="Ahmed Ammar"></option>
+          <option value="Ayoub Mlika"></option>
+          <option value="Oussema Mhiri"></option>
+          <option value="Hamed Mani"></option>
+          <option value="Raslène Gharzoul"></option>
+          <option value="Seifeddine Jegham"></option>
+          <option value="Omar Cherif"></option>
+          <option value="Abderrahim Mhiri"></option>
+          <option value="Ali Gueder"></option>
+          <option value="Ali Arfaoui"></option>
+          <option value="Firas Jedidi"></option>
+          <option value="Louay Jegham"></option>
+          <option value="Mohamed Amine Gassouma"></option>
+          <option value="Mohamed Amine Mazgou"></option>
+          <option value="Mohamed Amine Msallem"></option>
+          <option value="Mohamed Said Stoufa Sakji"></option>
+          <option value="Mohamed Aziz Ferjani"></option>
+          <option value="Mohamed Kharrat"></option>
+          <option value="Montassar Hachfi"></option>
+          <option value="Mehdi Letaief"></option>
+          <option value="Mohamed Aziz Bounaaja"></option>
+          <option value="Mohamed Salem Kortas"></option>
+          <option value="Wiem Tounsi"></option>
+          <option value="Youssef Rjab"></option>
+        </datalist>
+      </div>
+      <div class="my-2">
+        <label for="classe">Classe</label>
+        <input id="classe" type="text" name="classe" class="form-control" list="classes">
+        <datalist id="classes">
+          <option value="2TI">2TI</option>
+          <option value="2SC3">2SC3</option>
+          <option value="3T2">3T2</option>
+          <option value="4ECO">4ECO</option>
+        </datalist>
+      </div>
+      <div class="my-2">
+        <label for="files">Dossier</label>
+        <input type="file" name="files[]" id="files" multiple directory="" webkitdirectory="" moxdirectory=""
+          class="form-control">
+      </div>
+      <div class="my-2">
+        <input type="Submit" value="Upload" name="upload" />
+      </div>
+    </form>
+  </main>
+  <script src="assets/js/jquery.min.js"></script>
+  <script src="assets/js/jszip.min.js"></script>
+  <script src="assets/apps/app.js"></script>
+</body>
+
+</html>
