@@ -3,6 +3,7 @@ $(() => {
   const nomPrenom = $('#nom_prenom');
   const classe = $('#classe');
   const feedback = $('#feedback');
+  const btnUpload = $('#upload-btn');
 
   const dossier = document.querySelector('#type-dossier');
   const fichier = document.querySelector('#type-fichier');
@@ -53,16 +54,18 @@ $(() => {
     return zip.generateAsync({ type: 'blob' });
   };
 
-  const reportError = (text) => {
+  const reportFeedback = (ftype, title, description) => {
     feedback.removeClass('badge bg-success bg-danger');
-    feedback.addClass('badge bg-danger');
-    feedback.text("Erreur : " + text);
+    feedback.addClass(`badge ${ftype}`);
+    feedback.text(title + " : " + description);
+  };
+
+  const reportError = (text) => {
+    reportFeedback('bg-danger', 'Erreur', text);
   };
 
   const reportSuccess = (text) => {
-    feedback.removeClass('badge bg-success bg-danger');
-    feedback.addClass('badge bg-success');
-    feedback.text("Ok : " + text);
+    reportFeedback('bg-success', 'Ok', text);
   };
 
   form.submit((e) => {
@@ -89,6 +92,8 @@ $(() => {
       zip = zipCode(document.f.code.value);
     }
 
+    btnUpload.prop('disabled', true);
+
     const formData = new FormData();
     const url = 'upload.php';
     zip.then(function (content) {
@@ -103,12 +108,17 @@ $(() => {
       })
         .then(response => response.json())
         .then(data => {
+          btnUpload.prop('disabled', false);
           if (data.error) {
             reportError(data.error);
           } else if (data.success) {
             reportSuccess(data.success);
             document.f.reset();
           }
+        })
+        .catch(err => {
+          btnUpload.prop('disabled', false);
+          reportError(err);
         });
     });
 

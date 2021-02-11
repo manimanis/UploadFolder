@@ -63,9 +63,17 @@
       </div>
       <div class="my-2">
         <p>Je veux envoyer :</p>
-        <label><input type="radio" name="type" id="type-dossier" value="dossier" checked> Dossier</label>
-        <label><input type="radio" name="type" id="type-fichier" value="fichier"> Fichier</label>
-        <label><input type="radio" name="type" id="type-code" value="code"> Code</label>
+        <div class="row">
+          <div class="col-sm-4 my-1">
+            <label><input type="radio" name="type" id="type-dossier" value="dossier" checked> Un Dossier</label>
+          </div>
+          <div class="col-sm-4 my-1">
+            <label><input type="radio" name="type" id="type-fichier" value="fichier"> Un Fichier</label>
+          </div>
+          <div class="col-sm-4 my-1">
+            <label><input type="radio" name="type" id="type-code" value="code"> Un Code</label>
+          </div>
+        </div>
       </div>
       <div id="dossier-select" class="my-2">
         <label for="files">Dossier</label>
@@ -80,10 +88,10 @@
         <label for="code">Code source</label>
         <textarea id="code" name="code" class="form-control" rows="15"></textarea>
       </div>
-      <div class="my-2">
-        <input type="Submit" value="Upload" name="upload" />
-        <div><span id="feedback"></span></div>
+      <div class="my-2 text-center">
+        <input type="Submit" value="Upload" id="upload-btn" name="upload" class="btn btn-dark" />
       </div>
+      <div class="my-2 text-center"><span id="feedback"></span></div>
     </form>
   </main>
   <script src="assets/js/jquery.min.js"></script>

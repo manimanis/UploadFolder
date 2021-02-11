@@ -4,19 +4,7 @@ body {
 
 h1 {
   text-align: center;
-  color: #e54d2e;
-}
-
-h2 {
-  color: #f16930;
-}
-
-h3 {
-  color: #0870b9;
-}
-
-h4 {
-  color: #33a8e3;
+  color: #0870b9 !important;
 }
 
 .loading-spinner {
@@ -53,7 +41,11 @@ figure img {
 }
 
 main {
-  min-height: calc(100vh - 165px);
+	min-height: calc(100vh - 100px);
+	padding: 30px !important;
+	border: 1px solid #0870b9;
+	border-radius: 0.5em;
+	box-shadow: 0 0 5px #0870b9;
 }
 
 blockquote {
