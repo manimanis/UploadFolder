@@ -12,12 +12,11 @@
 
 <body>
   <main class="container my-5">
-    <h1>Envoi de travaux d'un dossier</h1>
-    <p>Mettre votre travail dans un dossier puis l'envoyer.</p>
-    <form id="form" action="upload.php" method="post" enctype="multipart/form-data">
+    <h1>Envoi de Travaux</h1>
+    <form id="form" name="f" action="upload.php" method="post" enctype="multipart/form-data">
       <div class="my-2">
         <label for="nom_prenom">Nom & Prénom</label>
-        <input id="nom_prenom" type="text" name="nom_prenom" class="form-control" list="eleves">
+        <input id="nom_prenom" type="text" name="nom_prenom" class="form-control" list="eleves" required>
         <datalist id="eleves">
           <option value="Adem Ben Jaafar"></option>
           <option value="Adem Moussa"></option>
@@ -54,7 +53,7 @@
       </div>
       <div class="my-2">
         <label for="classe">Classe</label>
-        <input id="classe" type="text" name="classe" class="form-control" list="classes">
+        <input id="classe" type="text" name="classe" class="form-control" list="classes" required>
         <datalist id="classes">
           <option value="2TI">2TI</option>
           <option value="2SC3">2SC3</option>
@@ -63,12 +62,27 @@
         </datalist>
       </div>
       <div class="my-2">
+        <p>Je veux envoyer :</p>
+        <label><input type="radio" name="type" id="type-dossier" value="dossier" checked> Dossier</label>
+        <label><input type="radio" name="type" id="type-fichier" value="fichier"> Fichier</label>
+        <label><input type="radio" name="type" id="type-code" value="code"> Code</label>
+      </div>
+      <div id="dossier-select" class="my-2">
         <label for="files">Dossier</label>
         <input type="file" name="files[]" id="files" multiple directory="" webkitdirectory="" moxdirectory=""
           class="form-control">
       </div>
+      <div id="fichier-select" class="my-2">
+        <label for="fichier">Fichier</label>
+        <input type="file" name="fichier" id="fichier" class="form-control">
+      </div>
+      <div id="code-select" class="my-2">
+        <label for="code">Code source</label>
+        <textarea id="code" name="code" class="form-control" rows="15"></textarea>
+      </div>
       <div class="my-2">
         <input type="Submit" value="Upload" name="upload" />
+        <div><span id="feedback"></span></div>
       </div>
     </form>
   </main>
