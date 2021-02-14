@@ -11,90 +11,75 @@
 </head>
 
 <body>
-  <main class="container my-5">
+  <main id="app" class="container my-5">
     <h1>Envoi de Travaux</h1>
-    <form id="form" name="f" action="upload.php" method="post" enctype="multipart/form-data">
-      <div class="my-2">
-        <label for="nom_prenom">Nom & Prénom</label>
-        <input id="nom_prenom" type="text" name="nom_prenom" class="form-control" list="eleves" required>
-        <datalist id="eleves">
-          <option value="Adem Ben Jaafar"></option>
-          <option value="Adem Moussa"></option>
-          <option value="Adem Khalifa Mhiri"></option>
-          <option value="Ahmed Khadrouf"></option>
-          <option value="Amir Boujnah"></option>
-          <option value="Aymen Slim"></option>
-          <option value="Aymen Falleh"></option>
-          <option value="Ahmed Ammar"></option>
-          <option value="Ayoub Mlika"></option>
-          <option value="Oussema Mhiri"></option>
-          <option value="Hamed Mani"></option>
-          <option value="Raslène Gharzoul"></option>
-          <option value="Seifeddine Jegham"></option>
-          <option value="Omar Cherif"></option>
-          <option value="Abderrahim Mhiri"></option>
-          <option value="Ali Gueder"></option>
-          <option value="Ali Arfaoui"></option>
-          <option value="Firas Jedidi"></option>
-          <option value="Louay Jegham"></option>
-          <option value="Mohamed Amine Gassouma"></option>
-          <option value="Mohamed Amine Mazgou"></option>
-          <option value="Mohamed Amine Msallem"></option>
-          <option value="Mohamed Said Stoufa Sakji"></option>
-          <option value="Mohamed Aziz Ferjani"></option>
-          <option value="Mohamed Kharrat"></option>
-          <option value="Montassar Hachfi"></option>
-          <option value="Mehdi Letaief"></option>
-          <option value="Mohamed Aziz Bounaaja"></option>
-          <option value="Mohamed Salem Kortas"></option>
-          <option value="Wiem Tounsi"></option>
-          <option value="Youssef Rjab"></option>
-        </datalist>
-      </div>
-      <div class="my-2">
-        <label for="classe">Classe</label>
-        <input id="classe" type="text" name="classe" class="form-control" list="classes" required>
-        <datalist id="classes">
-          <option value="2TI">2TI</option>
-          <option value="2SC3">2SC3</option>
-          <option value="3T2">3T2</option>
-          <option value="4ECO">4ECO</option>
-        </datalist>
-      </div>
-      <div class="my-2">
+    <form id="form" method="post" enctype="multipart/form-data">
+      <div v-if="step >= 0" class="my-2">
         <p>Je veux envoyer :</p>
         <div class="row">
           <div class="col-sm-4 my-1">
-            <label><input type="radio" name="type" id="type-dossier" value="dossier" checked> Un Dossier</label>
+            <label><input type="radio" name="type" id="type-dossier" value="dossier"
+                v-on:click="onTypeDataClicked('dossier')"> Un Dossier <img src="assets/images/folder.png"></label>
           </div>
           <div class="col-sm-4 my-1">
-            <label><input type="radio" name="type" id="type-fichier" value="fichier"> Un Fichier</label>
+            <label><input type="radio" name="type" id="type-fichier" value="fichier"
+                v-on:click="onTypeDataClicked('fichier')"> Un Fichier <img src="assets/images/file.png"></label>
           </div>
           <div class="col-sm-4 my-1">
-            <label><input type="radio" name="type" id="type-code" value="code"> Un Code</label>
+            <label><input type="radio" name="type" id="type-code" value="code" v-on:click="onTypeDataClicked('code')">
+              Un Code <img src="assets/images/python.png" alt=""></label>
           </div>
         </div>
       </div>
-      <div id="dossier-select" class="my-2">
-        <label for="files">Dossier</label>
-        <input type="file" name="files[]" id="files" multiple directory="" webkitdirectory="" moxdirectory=""
-          class="form-control">
+
+      <div v-if="step >= 1">
+        <div v-show="typeData == 'dossier'" id="dossier-select" class="my-2">
+          <label for="files">Dossier</label>
+          <input type="file" name="files[]" id="files" multiple directory="" webkitdirectory="" moxdirectory=""
+            class="form-control" v-on:change="onDataChanged('#files')">
+        </div>
+        <div v-show="typeData == 'fichier'" id="fichier-select" class="my-2">
+          <label for="fichier">Fichier</label>
+          <input type="file" name="fichier" id="fichier" class="form-control" v-on:change="onDataChanged('#fichier')">
+        </div>
+        <div v-show="typeData == 'code'" id="code-select" class="my-2">
+          <label for="code">Code source</label>
+          <textarea id="code" name="code" class="form-control" rows="5" v-on:change="onDataChanged('#code')"></textarea>
+        </div>
       </div>
-      <div id="fichier-select" class="my-2">
-        <label for="fichier">Fichier</label>
-        <input type="file" name="fichier" id="fichier" class="form-control">
+
+      <div v-if="step >= 2" class="my-2">
+        <label for="classe">Classe</label>
+        <select id="classes" class="form-control" v-model="classe" v-on:change="onClasseChanged()">
+          <option v-for="cls in nomsClasses" v-bind:value="cls">{{cls}}</option>
+          <option value="Autre">Autre</option>
+        </select>
       </div>
-      <div id="code-select" class="my-2">
-        <label for="code">Code source</label>
-        <textarea id="code" name="code" class="form-control" rows="15"></textarea>
+
+      <div v-if="step >= 3 && classe != 'Autre'" class="my-2">
+        <label for="nom_prenom">Nom & Prénom</label>
+        <select id="eleves" class="form-control" v-model="nomPrenom" v-on:change="onNomPrenomChanged()">
+          <option v-for="eleve in classes[classe]" v-bind:value="eleve">{{eleve}}</option>
+        </select>
       </div>
-      <div class="my-2 text-center">
-        <input type="Submit" value="Upload" id="upload-btn" name="upload" class="btn btn-dark" />
+
+      <div v-if="step >= 3 && classe == 'Autre'" class="my-2">
+        <label for="nom_prenom">Nom & Prénom</label>
+        <input id="nom_prenom" type="text" name="nom_prenom" class="form-control" v-model="nomPrenom"
+          v-on:change="onNomPrenomChanged()" required>
       </div>
-      <div class="my-2 text-center"><span id="feedback"></span></div>
+
+      <div v-if="step >= 4" class="my-2 text-center">
+        <input type="Submit" value="Upload" id="upload-btn" name="upload" class="btn btn-dark"
+          v-on:click.prevent="onUploadClicked()" />
+      </div>
+      <div v-if="feedback != ''" class="my-2 text-center">
+        <span id="feedback" class="badge" v-bind:class="feedbackClass">{{title}} : {{feedback}}</span>
+      </div>
     </form>
   </main>
   <script src="assets/js/jquery.min.js"></script>
+  <script src="assets/js/vue.min.js"></script>
   <script src="assets/js/jszip.min.js"></script>
   <script src="assets/apps/app.js"></script>
 </body>

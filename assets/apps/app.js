@@ -1,126 +1,153 @@
-$(() => {
-  const form = $('#form');
-  const nomPrenom = $('#nom_prenom');
-  const classe = $('#classe');
-  const feedback = $('#feedback');
-  const btnUpload = $('#upload-btn');
-
-  const dossier = document.querySelector('#type-dossier');
-  const fichier = document.querySelector('#type-fichier');
-  const code = document.querySelector('#type-code');
-  const radioSelectModes = [dossier, fichier, code];
-  const radioSelectDivs = [
-    document.querySelector('#dossier-select'),
-    document.querySelector('#fichier-select'),
-    document.querySelector('#code-select'),
-  ];
-
-  const getSelectedModeIndex = function () {
-    return radioSelectModes.findIndex(radio => radio.checked);
-  };
-  const setSelectedModeIndex = function (idx) {
-    selectedModeIndex = idx;
-    selectedMode = radioSelectModes[idx].value;
-    radioSelectDivs.forEach((div, index) => {
-      div.style.display = (index == idx) ? 'block' : 'none';
-    });
-  };
-
-  let selectedModeIndex = 0;
-  setSelectedModeIndex(selectedModeIndex);
-  radioSelectModes.forEach(radio => radio.addEventListener('click', () => {
-    const idx = getSelectedModeIndex();
-    setSelectedModeIndex(idx);
-  }));
-
-  const zipFiles = (filesField) => {
-    const files = [];
-    const filesList = filesField.files;
-    for (let i = 0; i < filesList.length; i++) {
-      files.push(filesList[i]);
-    }
-
-    var zip = new JSZip();
-    files.forEach((file) => {
-      const fileName = (file.webkitRelativePath != '') ? file.webkitRelativePath : file.name;
-      zip.file(fileName, file);
-    });
-    return zip.generateAsync({ type: 'blob' });
-  };
-
-  const zipCode = (text) => {
-    var zip = new JSZip();
-    zip.file("code.txt", text);
-    return zip.generateAsync({ type: 'blob' });
-  };
-
-  const reportFeedback = (ftype, title, description) => {
-    feedback.removeClass('badge bg-success bg-danger');
-    feedback.addClass(`badge ${ftype}`);
-    feedback.text(title + " : " + description);
-  };
-
-  const reportError = (text) => {
-    reportFeedback('bg-danger', 'Erreur', text);
-  };
-
-  const reportSuccess = (text) => {
-    reportFeedback('bg-success', 'Ok', text);
-  };
-
-  form.submit((e) => {
-    e.preventDefault();
-
-    let zip = null;
-    if (selectedMode == 'dossier') {
-      if (document.f.files.files.length == 0) {
-        reportError('Sélectionner le dossier à soumettre !');
-        return;
-      }
-      zip = zipFiles(document.f.files);
-    } else if (selectedMode == 'fichier') {
-      if (document.f.fichier.files.length == 0) {
-        reportError('Sélectionner le fichier à soumettre !');
-        return;
-      }
-      zip = zipFiles(document.f.fichier);
-    } else {
-      if (document.f.code.value.length == 0) {
-        reportError('Veuillez copier/coller votre code !');
-        return;
-      }
-      zip = zipCode(document.f.code.value);
-    }
-
-    btnUpload.prop('disabled', true);
-
-    const formData = new FormData();
-    const url = 'upload.php';
-    zip.then(function (content) {
-      formData.append("files", content);
-      formData.append("nom_prenom", nomPrenom.val());
-      formData.append("classe", classe.val())
-      formData.append("upload", "upload");
-
-      fetch(url, {
-        method: 'POST',
-        body: formData
-      })
+const app = new Vue({
+  el: '#app',
+  data: {
+    step: 0,
+    typeData: '',
+    elem: null,
+    classe: '',
+    nomPrenom: '',
+    selectedCode: "",
+    selectedFile: "",
+    selectedDir: [],
+    nomsClasses: [],
+    classes: {},
+    feedbackClass: "",
+    title: "",
+    feedback: ""
+  },
+  mounted: function () {
+    this.fetchClasses();
+  },
+  methods: {
+    fetchClasses: function () {
+      return fetch('classes.json')
         .then(response => response.json())
         .then(data => {
-          btnUpload.prop('disabled', false);
-          if (data.error) {
-            reportError(data.error);
-          } else if (data.success) {
-            reportSuccess(data.success);
-            document.f.reset();
-          }
-        })
-        .catch(err => {
-          btnUpload.prop('disabled', false);
-          reportError(err);
+          this.classes = data;
+          this.nomsClasses = Object.keys(data);
         });
-    });
+    },
+    generateReadme: function () {
+      return `${this.nomPrenom}
+${this.classe}
+${new Date().toLocaleString('Fr-fr')}`;
+    },
+    zipFiles: function (filesField) {
+      const files = [];
+      const filesList = filesField.files;
+      for (let i = 0; i < filesList.length; i++) {
+        files.push(filesList[i]);
+      }
 
-  });
+      var zip = new JSZip();
+      zip.file("readme.txt", this.generateReadme());
+      files.forEach((file) => {
+        const fileName = (file.webkitRelativePath != '') ? file.webkitRelativePath : file.name;
+        zip.file(fileName, file);
+      });
+      return zip.generateAsync({ type: 'blob' });
+    },
+    zipCode: function (code) {
+      var zip = new JSZip();
+      zip.file("readme.txt", this.generateReadme());
+      zip.file("code.txt", code);
+      return zip.generateAsync({ type: 'blob' });
+    },
+    prepareZipFile: function () {
+      let zip = null;
+      if (this.typeData == 'dossier') {
+        if (this.elem.files.length == 0) {
+          this.reportError('Sélectionner le dossier à soumettre !');
+          return null;
+        }
+        zip = this.zipFiles(this.elem);
+      } else if (this.typeData == 'fichier') {
+        if (this.elem.files.length == 0) {
+          this.reportError('Sélectionner le fichier à soumettre !');
+          return null;
+        }
+        zip = this.zipFiles(this.elem);
+      } else {
+        if (this.elem.value.length == 0) {
+          this.reportError('Veuillez copier/coller votre code !');
+          return null;
+        }
+        zip = this.zipCode(this.elem.value);
+      }
+      return zip;
+    },
+    reportFeedback: function (ftype, title, description) {
+      this.feedbackClass = ftype;
+      this.feedback = description;
+      this.title = title;
+    },
+    reportError: function (text) {
+      this.reportFeedback('bg-danger', 'Erreur', text);
+    },
+    reportSuccess: function (text) {
+      this.reportFeedback('bg-success', 'Ok', text);
+    },
+    sendZipFile: function () {
+      const formData = new FormData();
+      const url = 'upload.php';
+      this
+        .prepareZipFile()
+        .then((content) => {
+          formData.append("files", content);
+          formData.append("nom_prenom", this.nomPrenom);
+          formData.append("classe", this.classe);
+          formData.append("upload", "upload");
+
+          fetch(url, {
+            method: 'POST',
+            body: formData
+          })
+            .then(response => response.json())
+            .then(data => {
+              // btnUpload.prop('disabled', false);
+              if (data.error) {
+                this.reportError(data.error);
+              } else if (data.success) {
+                this.reportSuccess(data.success);
+                // document.f.reset();
+                document.querySelector('#form').reset();
+                this.step = 0;
+              }
+            })
+            .catch(err => {
+              // btnUpload.prop('disabled', false);
+              this.reportError(err);
+            });
+        });
+    },
+    onTypeDataClicked: function (typeData) {
+      this.typeData = typeData;
+      this.feedback = '';
+      this.classe = '';
+      this.nomPrenom = '';
+      this.step = 1;
+    },
+    onDataChanged: function (elemId) {
+      console.log('onDataChanged()');
+      this.elem = document.querySelector(elemId);
+      this.classe = '';
+      this.step = 2;
+    },
+    onClasseChanged: function () {
+      console.log('onClasseChanged()');
+      if (this.classe != '') {
+        this.nomPrenom = '';
+        this.step = 3;
+      }
+    },
+    onNomPrenomChanged: function () {
+      console.log('onNomPrenomChanged()');
+      if (this.nomPrenom != '') {
+        this.step = 4;
+      }
+    },
+    onUploadClicked: function () {
+      this.sendZipFile();
+    }
+  }
 });
