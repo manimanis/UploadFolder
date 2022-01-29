@@ -1,5 +1,11 @@
 <?php
 
+if (isset($_POST["hello"])) {
+	die(json_encode([
+		"success" => "Welcome to Upload Server!"
+	]));
+}
+
 if (!isset($_POST['upload'])) {
     die(json_encode(array(
         "error" => "Erreur!",
