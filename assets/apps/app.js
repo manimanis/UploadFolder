@@ -25,6 +25,10 @@ const app = new Vue({
         .then(data => {
           this.classes = data;
           this.nomsClasses = Object.keys(data);
+          this.nomsClasses.forEach(nomClasse => {
+            this.classes[nomClasse].sort();
+          });
+          console.log(this.classes);
         });
     },
     generateReadme: function () {
