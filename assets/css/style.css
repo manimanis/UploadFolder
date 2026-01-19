@@ -148,6 +148,11 @@ input:checked+.slider:before {
   border-radius: 50%;
 }
 
+.badge {
+  display: block;
+  text-align: initial;
+}
+
 /*** switch end ***/
 
 @media print {

@@ -141,7 +141,7 @@ ${new Date().toLocaleString('Fr-fr')}`;
       console.log('onClasseChanged()');
       if (this.classe != '') {
         this.nomPrenom = '';
-        this.step = 3;
+        this.step = 4;
       }
     },
     onNomPrenomChanged: function () {
