@@ -1,142 +1,114 @@
 <?php
 
+/**
+ * Sanitize a string for use in file paths
+ * Removes accents, special chars, prevents path traversal
+ */
+function sanitizePathComponent($input)
+{
+  // Transliterate accents to ASCII equivalents
+  if (function_exists('iconv')) {
+    $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $input);
+    if ($transliterated !== false) {
+      $input = $transliterated;
+    }
+  }
+  // Remove any character that is not alphanumeric, underscore, hyphen, dot, or space
+  $input = preg_replace('/[^\w\s.\-]/u', '', $input);
+  $input = preg_replace('/\s+/', ' ', $input);
+  return trim($input);
+}
+
+/**
+ * Return a JSON error response, without exposing sensitive debug data
+ */
+function jsonError($message)
+{
+  die(json_encode(["error" => $message]));
+}
+
+/**
+ * Return a JSON success response
+ */
+function jsonSuccess($message)
+{
+  die(json_encode(["success" => $message]));
+}
+
+// --- Route: hello check ---
 if (isset($_POST["hello"])) {
-    die(json_encode([
-        "success" => "Welcome to Upload Server!"
-    ]));
+  jsonSuccess("Welcome to Upload Server!");
 }
 
+// --- Require upload flag ---
 if (!isset($_POST['upload'])) {
-    die(json_encode(array(
-        "error" => "Erreur!",
-        'POST' => $_POST,
-        'FILES' => $_FILES
-    )));
+  jsonError("Erreur : données de formulaire manquantes.");
 }
 
-$nom_prenom = empty($_POST['nom_prenom']) ? str_replace('.', '-', $_SERVER['REMOTE_ADDR']) : $_POST['nom_prenom'];
-$classe = $_POST['classe'];
-$files = $_FILES['files'];
+// --- Validate required inputs ---
+$poste = empty($_POST['poste']) ? '' : sanitizePathComponent($_POST['poste']);
+$classe = empty($_POST['classe']) ? '' : sanitizePathComponent($_POST['classe']);
 
-if ($nom_prenom == '' || $classe == '' || count($files) == 0) {
-    die(json_encode(array(
-        "error" => "<p>Veuillez indiquer toutes les informations : <p>
-<ul>
-  <li>Votre nom et prénom (optionnel)</li>
-  <li>Votre classe (obligatoire)</li>
-  <li>Le dossier à télécharger (obligatoire)</li>
-</ul>",
-        'POST' => $_POST,
-        'FILES' => $_FILES
-    )));
+if ($classe === '') {
+  jsonError("Veuillez indiquer votre classe (obligatoire).");
 }
 
-$accented_array = array(
-    'Š' => 'S',
-    'š' => 's',
-    'Ž' => 'Z',
-    'ž' => 'z',
-    'À' => 'A',
-    'Á' => 'A',
-    'Â' => 'A',
-    'Ã' => 'A',
-    'Ä' => 'A',
-    'Å' => 'A',
-    'Æ' => 'A',
-    'Ç' => 'C',
-    'È' => 'E',
-    'É' => 'E',
-    'Ê' => 'E',
-    'Ë' => 'E',
-    'Ì' => 'I',
-    'Í' => 'I',
-    'Î' => 'I',
-    'Ï' => 'I',
-    'Ñ' => 'N',
-    'Ò' => 'O',
-    'Ó' => 'O',
-    'Ô' => 'O',
-    'Õ' => 'O',
-    'Ö' => 'O',
-    'Ø' => 'O',
-    'Ù' => 'U',
-    'Ú' => 'U',
-    'Û' => 'U',
-    'Ü' => 'U',
-    'Ý' => 'Y',
-    'Þ' => 'B',
-    'ß' => 'Ss',
-    'à' => 'a',
-    'á' => 'a',
-    'â' => 'a',
-    'ã' => 'a',
-    'ä' => 'a',
-    'å' => 'a',
-    'æ' => 'a',
-    'ç' => 'c',
-    'è' => 'e',
-    'é' => 'e',
-    'ê' => 'e',
-    'ë' => 'e',
-    'ì' => 'i',
-    'í' => 'i',
-    'î' => 'i',
-    'ï' => 'i',
-    'ð' => 'o',
-    'ñ' => 'n',
-    'ò' => 'o',
-    'ó' => 'o',
-    'ô' => 'o',
-    'õ' => 'o',
-    'ö' => 'o',
-    'ø' => 'o',
-    'ù' => 'u',
-    'ú' => 'u',
-    'û' => 'u',
-    'ý' => 'y',
-    'þ' => 'b',
-    'ÿ' => 'y'
-);
+// If no name provided, use a sanitized IP address
+if ($poste === '') {
+  $poste = str_replace('.', '-', $_SERVER['REMOTE_ADDR']);
+}
 
-$upload_folder = dirname(__FILE__) . DIRECTORY_SEPARATOR . "upload_folder";
-if (!is_dir($upload_folder)) {
-    mkdir($upload_folder);
+// --- Validate upload file ---
+if (!isset($_FILES['files']) || !isset($_FILES['files']['tmp_name']) || empty($_FILES['files']['tmp_name'])) {
+  jsonError("Aucun fichier reçu. Veuillez sélectionner un fichier/dossier à soumettre.");
 }
-$upload_folder .= DIRECTORY_SEPARATOR . date('Ymd');
-if (!is_dir($upload_folder)) {
-    mkdir($upload_folder);
+
+// Check if uploaded file is a blob (from JSZip client-side compression) or actual file
+$upload_tmp = $_FILES['files']['tmp_name'];
+$upload_name = basename($_FILES['files']['name']);
+
+// --- File size validation (PHP side max 50MB) ---
+$max_size = 50 * 1024 * 1024; // 50 MB
+$file_size = filesize($upload_tmp);
+if ($file_size === false || $file_size > $max_size) {
+  jsonError("Le fichier est trop volumineux. Taille maximale acceptée : 50 Mo.");
 }
-$upload_folder .= DIRECTORY_SEPARATOR . str_replace(' ', '-', $classe);
-if (!is_dir($upload_folder)) {
-    mkdir($upload_folder);
+
+// --- MIME type validation for the ZIP blob sent by the client ---
+// The client sends a ZIP via FormData, so MIME should be application/zip
+$finfo = finfo_open(FILEINFO_MIME_TYPE);
+$mime = finfo_file($finfo, $upload_tmp);
+finfo_close($finfo);
+$allowed_mimes = ['application/zip', 'application/x-zip', 'application/x-zip-compressed', 'application/octet-stream'];
+if (!in_array($mime, $allowed_mimes)) {
+  jsonError("Type de fichier non accepté. Seuls les fichiers ZIP sont autorisés.");
 }
-$upload_folder .= DIRECTORY_SEPARATOR . str_replace(' ', '-', strtr($nom_prenom, $accented_array));
-if (!is_dir($upload_folder)) {
-    mkdir($upload_folder);
+
+// --- Create organized upload directory ---
+$upload_folder = __DIR__ . DIRECTORY_SEPARATOR . "upload_folder";
+foreach ([date('Ymd'), str_replace(' ', '-', $classe), str_replace(' ', '-', $poste)] as $subfolder) {
+  $upload_folder .= DIRECTORY_SEPARATOR . $subfolder;
 }
+
+if (!is_dir($upload_folder)) {
+  if (!mkdir($upload_folder, 0755, true)) {
+    jsonError("Erreur interne : impossible de créer le dossier de destination '$upload_folder'.");
+  }
+}
+
+// --- Generate unique filename ---
 $file = date('His');
 $file .= '_' . str_replace('.', '-', $_SERVER['REMOTE_ADDR']);
 
 $count = 0;
 do {
-    $upload_dir = $upload_folder . DIRECTORY_SEPARATOR . $file . ($count == 0 ? "" : $count) . ".zip";
-    $count++;
+  $upload_dir = $upload_folder . DIRECTORY_SEPARATOR . $file . ($count === 0 ? "" : (string) $count) . ".zip";
+  $count++;
 } while (file_exists($upload_dir));
 
-if (strlen($_FILES['files']['name']) > 1) {
-    if (move_uploaded_file($_FILES['files']['tmp_name'], $upload_dir)) {
-        die(json_encode(array("success" => "Folder is successfully uploaded")));
-    } else {
-        die(json_encode(array(
-            "error" => "Could not upload file.",
-            'POST' => $_POST,
-            'FILES' => $_FILES
-        )));
-    }
+// --- Move uploaded file ---
+if (move_uploaded_file($upload_tmp, $upload_dir)) {
+  jsonSuccess("Travail envoyé avec succès !");
 } else {
-    die(json_encode(array(
-        "error" => "No files to upload.",
-        'POST' => $_POST,
-        'FILES' => $_FILES
-    )));
+  jsonError("Erreur lors de l'enregistrement du fichier. Veuillez réessayer.");
 }
