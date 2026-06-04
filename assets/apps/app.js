@@ -13,13 +13,16 @@ const app = new Vue({
     code: '',
     files: [],
     fichier: null,
+    csrfToken: '',
+    classeCustom: '',
 
-    // File size limit: 50 MB for the uncompressed data
-    maxSizeBytes: 50 * 1024 * 1024
+    // File size limit: 100 MB for the uncompressed data
+    maxSizeBytes: 100 * 1024 * 1024
   },
   mounted: function () {
     this.fetchClasses();
     this.restoreSession();
+    this.loadCsrfToken();
     // Attach drag & drop listeners on the whole document (outside Vue's #app scope)
     this._onDragOver = this.onDragOver.bind(this);
     this._onDrop = this.onDrop.bind(this);
@@ -30,6 +33,9 @@ const app = new Vue({
     // Clean up listeners to avoid memory leaks
     document.removeEventListener('dragover', this._onDragOver);
     document.removeEventListener('drop', this._onDrop);
+    if (this._onDragLeave) {
+      document.removeEventListener('dragleave', this._onDragLeave);
+    }
   },
   computed: {
     selectedFilesInfosLimited: function () {
@@ -43,6 +49,9 @@ const app = new Vue({
         }];
       }
       return this.selectedFilesInfos;
+    },
+    effectiveClasse: function () {
+      return this.classe === 'Autre' ? this.classeCustom : this.classe;
     }
   },
   methods: {
@@ -69,16 +78,32 @@ const app = new Vue({
       return {};
     },
 
+    // ---- CSRF Token ----
+    loadCsrfToken: function () {
+      let meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta) {
+        this.csrfToken = meta.getAttribute('content');
+      }
+    },
+
     // ---- Data Fetching ----
     fetchClasses: function () {
       return fetch('classes.json')
-        .then(function (response) { return response.json(); })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('Impossible de charger les classes.');
+          }
+          return response.json();
+        })
         .then(function (data) {
           this.classes = data;
           this.nomsClasses = Object.keys(data);
           this.nomsClasses.forEach(function (nomClasse) {
             this.classes[nomClasse].sort();
           }, this);
+        }.bind(this))
+        .catch(function (err) {
+          this.showToast('Erreur lors du chargement des classes : ' + err.message, 'error');
         }.bind(this));
     },
 
@@ -89,7 +114,8 @@ const app = new Vue({
       try {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify({
           classe: this.classe,
-          poste: this.poste
+          poste: this.poste,
+          classCustom: this.classCustom
         }));
       } catch (e) {
         // localStorage may be unavailable
@@ -98,10 +124,11 @@ const app = new Vue({
 
     restoreSession: function () {
       try {
-        var saved = localStorage.getItem(this.STORAGE_KEY) || '{}';
-        var data = JSON.parse(saved);
+        let saved = localStorage.getItem(this.STORAGE_KEY) || '{}';
+        let data = JSON.parse(saved);
         if (data.classe) this.classe = data.classe;
         if (data.poste) this.poste = data.poste;
+        if (data.classCustom) this.classCustom = data.classCustom;
       } catch (e) {
         // ignore
       }
@@ -114,18 +141,18 @@ const app = new Vue({
     // ---- ZIP Generation ----
     generateReadme: function () {
       return this.poste + '\n' +
-        this.classe + '\n' +
+        this.effectiveClasse + '\n' +
         new Date().toLocaleString('fr-fr');
     },
 
     zipFiles: function (filesField) {
-      var files = [];
-      var filesList = filesField.files;
-      for (var i = 0; i < filesList.length; i++) {
+      let files = [];
+      let filesList = filesField.files;
+      for (let i = 0; i < filesList.length; i++) {
         files.push(filesList[i]);
       }
 
-      var totalSize = files.reduce(function (sum, file) { return sum + file.size; }, 0);
+      let totalSize = files.reduce(function (sum, file) { return sum + file.size; }, 0);
       if (totalSize > this.maxSizeBytes) {
         this.showToast('Le dossier/fichier est trop volumineux. Taille max: 50 Mo.', 'error');
         this.hideLoading();
@@ -138,10 +165,10 @@ const app = new Vue({
         return null;
       }
 
-      var zip = new JSZip();
+      let zip = new JSZip();
       zip.file('readme.txt', this.generateReadme());
       files.forEach(function (file) {
-        var fileName = (file.webkitRelativePath !== '') ? file.webkitRelativePath : file.name;
+        let fileName = (file.webkitRelativePath !== '') ? file.webkitRelativePath : file.name;
         zip.file(fileName, file);
       }, this);
       return zip.generateAsync({
@@ -157,7 +184,7 @@ const app = new Vue({
         this.hideLoading();
         return null;
       }
-      var zip = new JSZip();
+      let zip = new JSZip();
       zip.file('readme.txt', this.generateReadme());
       zip.file('code.txt', code);
       return zip.generateAsync({
@@ -168,7 +195,7 @@ const app = new Vue({
     },
 
     prepareZipFile: function () {
-      var zip = null;
+      let zip = null;
       if (this.typeData === 'dossier' || this.typeData === 'fichier') {
         if (this.elem.files.length === 0) {
           this.showToast('Sélectionner le fichier/dossier à soumettre !', 'error');
@@ -188,16 +215,16 @@ const app = new Vue({
     // ---- Toast System ----
     showToast: function (message, type) {
       type = type || 'info';
-      var container = document.getElementById('toast-container');
+      let container = document.getElementById('toast-container');
       if (!container) return;
 
-      var icons = {
+      let icons = {
         success: '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>',
         error: '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>',
         info: '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>'
       };
 
-      var toast = document.createElement('div');
+      let toast = document.createElement('div');
       toast.className = 'toast toast-' + type;
       toast.innerHTML =
         '<span class="toast-icon">' + (icons[type] || icons.info) + '</span>' +
@@ -216,22 +243,22 @@ const app = new Vue({
     },
 
     escapeHtml: function (text) {
-      var div = document.createElement('div');
+      let div = document.createElement('div');
       div.appendChild(document.createTextNode(text));
       return div.innerHTML;
     },
 
     // ---- Confetti ----
     showConfetti: function () {
-      var container = document.getElementById('confetti-container');
+      let container = document.getElementById('confetti-container');
       if (!container) return;
       container.classList.remove('d-none');
 
-      var colors = ['#0870b9', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
-      var pieces = 60;
+      let colors = ['#0870b9', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
+      let pieces = 60;
 
-      for (var i = 0; i < pieces; i++) {
-        var piece = document.createElement('div');
+      for (let i = 0; i < pieces; i++) {
+        let piece = document.createElement('div');
         piece.className = 'confetti-piece';
         piece.style.left = Math.random() * 100 + '%';
         piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
@@ -252,24 +279,27 @@ const app = new Vue({
 
     // ---- Loading ----
     showLoading: function (msg) {
-      document.getElementById('loading-text').textContent = msg || 'Préparation de l\'envoi...';
-      document.getElementById('loading-overlay').classList.remove('d-none');
+      let loadingText = document.getElementById('loading-text');
+      let loadingOverlay = document.getElementById('loading-overlay');
+      if (loadingText) loadingText.textContent = msg || 'Préparation de l\'envoi...';
+      if (loadingOverlay) loadingOverlay.classList.remove('d-none');
     },
 
     hideLoading: function () {
-      document.getElementById('loading-overlay').classList.add('d-none');
+      let loadingOverlay = document.getElementById('loading-overlay');
+      if (loadingOverlay) loadingOverlay.classList.add('d-none');
     },
 
     // ---- Upload ----
     sendZipFile: function () {
-      var self = this;
-      var formData = new FormData();
-      var url = 'upload.php';
+      let self = this;
+      let formData = new FormData();
+      let url = 'upload.php';
 
       self.uploading = true;
       self.showLoading('Compression et envoi en cours...');
 
-      var zipPromise = self.prepareZipFile();
+      let zipPromise = self.prepareZipFile();
       if (zipPromise === null) {
         self.uploading = false;
         self.hideLoading();
@@ -279,9 +309,10 @@ const app = new Vue({
       zipPromise
         .then(function (content) {
           formData.append('files', content, 'upload.zip');
-          formData.append('classe', self.classe);
+          formData.append('classe', self.effectiveClasse);
           formData.append('poste', self.poste);
           formData.append('upload', 'upload');
+          formData.append('csrf_token', self.csrfToken);
 
           return fetch(url, {
             method: 'POST',
@@ -313,20 +344,24 @@ const app = new Vue({
     // ---- Drag & Drop (from Windows Explorer) ----
     onDragOver: function (e) {
       e.preventDefault();
-      var overlay = document.getElementById('drop-overlay');
+      let overlay = document.getElementById('drop-overlay');
       if (overlay) overlay.classList.remove('d-none');
-      document.body.addEventListener('dragleave', function handler(e) {
-        // Hide overlay when cursor leaves the window
-        if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
-          if (overlay) overlay.classList.add('d-none');
-          document.body.removeEventListener('dragleave', handler);
-        }
-      });
+
+      // Only attach the dragleave handler once to avoid memory leaks
+      if (!this._dragLeaveAttached) {
+        this._dragLeaveAttached = true;
+        this._onDragLeave = function handler(e) {
+          if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+            if (overlay) overlay.classList.add('d-none');
+          }
+        };
+        document.body.addEventListener('dragleave', this._onDragLeave);
+      }
     },
 
     // ---- Recursively walk directory entries to collect files with webkitRelativePath ----
     walkEntry: function (entry, path, results, done) {
-      var self = this;
+      let self = this;
       // path is the relative path from the root dropped folder
       if (entry.isFile) {
         entry.file(function (file) {
@@ -344,13 +379,13 @@ const app = new Vue({
           done();
         }, done);
       } else if (entry.isDirectory) {
-        var dirReader = entry.createReader();
-        var entries = [];
-        var readEntries = function () {
+        let dirReader = entry.createReader();
+        let entries = [];
+        let readEntries = function () {
           dirReader.readEntries(function (batch) {
             if (batch.length === 0) {
               // All entries read, process them
-              var pending = entries.length;
+              let pending = entries.length;
               if (pending === 0) {
                 done();
               } else {
@@ -375,20 +410,20 @@ const app = new Vue({
 
     onDrop: function (e) {
       e.preventDefault();
-      var overlay = document.getElementById('drop-overlay');
+      let overlay = document.getElementById('drop-overlay');
       if (overlay) overlay.classList.add('d-none');
 
-      var self = this;
-      var items = e.dataTransfer.items;
+      let self = this;
+      let items = e.dataTransfer.items;
       if (!items || items.length === 0) return;
 
       // Detect if we have directories
-      var hasDirectories = false;
-      var entries = [];
-      for (var i = 0; i < items.length; i++) {
-        var item = items[i];
+      let hasDirectories = false;
+      let entries = [];
+      for (let i = 0; i < items.length; i++) {
+        let item = items[i];
         if (item.webkitGetAsEntry) {
-          var entry = item.webkitGetAsEntry();
+          let entry = item.webkitGetAsEntry();
           if (entry) {
             entries.push(entry);
             if (entry.isDirectory) hasDirectories = true;
@@ -398,12 +433,12 @@ const app = new Vue({
 
       if (entries.length === 0) {
         // Fallback: use dataTransfer.files (flat, no directory structure)
-        var flatFiles = e.dataTransfer.files;
+        let flatFiles = e.dataTransfer.files;
         if (!flatFiles || flatFiles.length === 0) return;
         self.typeData = 'fichier';
-        var flatInfos = [];
-        for (var fi = 0; fi < flatFiles.length; fi++) {
-          var f = flatFiles[fi];
+        let flatInfos = [];
+        for (let fi = 0; fi < flatFiles.length; fi++) {
+          let f = flatFiles[fi];
           flatInfos.push({ name: f.name, size: f.size });
         }
         self.selectedFilesInfos = flatInfos;
@@ -416,8 +451,8 @@ const app = new Vue({
       self.typeData = hasDirectories ? 'dossier' : 'fichier';
 
       // Walk all entries recursively to collect files with proper paths
-      var allFiles = [];
-      var pendingEntries = entries.length;
+      let allFiles = [];
+      let pendingEntries = entries.length;
 
       entries.forEach(function (entry) {
         self.walkEntry(entry, '', allFiles, function () {
@@ -425,7 +460,7 @@ const app = new Vue({
           if (pendingEntries === 0) {
             // All entries processed
             // Build a FileList-like object
-            var dataTransfer = new DataTransfer();
+            let dataTransfer = new DataTransfer();
             allFiles.forEach(function (f) {
               try {
                 dataTransfer.items.add(f);
@@ -433,12 +468,12 @@ const app = new Vue({
                 // Some browsers may not support DataTransfer.items.add for File objects
               }
             });
-            var fileList = dataTransfer.files;
+            let fileList = dataTransfer.files;
 
             // Build file info for display
-            var fileInfos = [];
-            for (var j = 0; j < allFiles.length; j++) {
-              var file = allFiles[j];
+            let fileInfos = [];
+            for (let j = 0; j < allFiles.length; j++) {
+              let file = allFiles[j];
               fileInfos.push({
                 name: file.webkitRelativePath || file.name,
                 size: file.size
@@ -513,14 +548,26 @@ const app = new Vue({
       if (this.classe !== '') {
         this.saveSession();
       }
-      this.step = 2 + (this.classe != '') + (this.classe != '' && this.poste != '');
+      if (this.effectiveClasse && this.poste) {
+        this.step = 4;
+      } else if (this.effectiveClasse) {
+        this.step = 3;
+      } else {
+        this.step = 2;
+      }
     },
 
     onPosteChanged: function () {
       if (this.poste !== '') {
         this.saveSession();
       }
-      this.step = 2 + (this.classe != '') + (this.classe != '' && this.poste != '');
+      if (this.effectiveClasse && this.poste) {
+        this.step = 4;
+      } else if (this.effectiveClasse) {
+        this.step = 3;
+      } else {
+        this.step = 2;
+      }
     },
 
     onNextStep: function () {
@@ -537,7 +584,8 @@ const app = new Vue({
 
     isValidInformations: function (step) {
       if (step === 3) {
-        return this.classe !== '' && this.poste !== '';
+        let effectiveClass = this.classe === 'Autre' ? this.classeCustom : this.classe;
+        return effectiveClass !== '' && this.poste !== '';
       }
       return true;
     },

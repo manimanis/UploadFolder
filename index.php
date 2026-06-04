@@ -1,3 +1,12 @@
+<?php
+session_start();
+
+// Generate a CSRF token if one doesn't exist yet
+if (empty($_SESSION['csrf_token'])) {
+  $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
+?>
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -5,6 +14,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token); ?>">
   <title>Envoi de Travaux</title>
   <link rel="stylesheet" href="assets/css/bootstrap.min.css">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -95,6 +105,7 @@
 
     <form id="form" method="post" enctype="multipart/form-data" novalidate>
       <!-- STEP 0: Type Selection -->
+      <transition name="step" mode="out-in">
       <div v-if="step === 0" class="step-card">
         <fieldset>
           <legend><span class="card-icon">📁</span>Je veux envoyer :</legend>
@@ -126,8 +137,10 @@
           </div>
         </fieldset>
       </div>
+      </transition>
 
       <!-- STEP 1: File / Code Selection -->
+      <transition name="step" mode="out-in">
       <div v-if="step === 1" class="step-card">
         <fieldset>
           <legend><span class="card-icon">📎</span>Sélectionnez votre travail :</legend>
@@ -168,8 +181,10 @@
           </div>
         </fieldset>
       </div>
+      </transition>
 
       <!-- STEP 2: Class & Poste -->
+      <transition name="step" mode="out-in">
       <div v-if="step === 2" class="step-card">
         <fieldset>
           <legend><span class="card-icon">🏫</span>Vos informations</legend>
@@ -180,6 +195,11 @@
               <option v-for="cls in nomsClasses" v-bind:value="cls">{{cls}}</option>
               <option value="Autre">Autre</option>
             </select>
+          </div>
+          <div v-if="classe === 'Autre'" class="my-2">
+            <label for="classe-autre" class="form-label">Nom de votre classe</label>
+            <input id="classe-autre" type="text" class="form-control" v-model="classeCustom"
+              placeholder="Ex: 1INFO2" required>
           </div>
           <div class="my-2">
             <label for="poste" class="form-label">Poste</label>
@@ -195,8 +215,10 @@
           </div>
         </fieldset>
       </div>
+      </transition>
 
       <!-- STEP 3: Submit -->
+      <transition name="step" mode="out-in">
       <div v-if="step === 3" class="step-card">
         <fieldset>
           <legend><span class="card-icon">🚀</span>Confirmation</legend>
@@ -206,7 +228,7 @@
               class="btn btn-primary btn-lg" v-on:click.prevent="onUploadClicked()" :disabled="uploading" />
           </div>
           <div class="list-unstyled">
-            <div><strong>Classe :</strong> {{ classe }}</div>
+            <div><strong>Classe :</strong> {{ classe === 'Autre' ? classeCustom : classe }}</div>
             <div><strong>Poste :</strong> {{ poste }}</div>
             <!-- File info preview -->
             <div class="files-info my-3" v-if="selectedFilesInfos.length > 0">
@@ -229,6 +251,7 @@
           </div>
         </fieldset>
       </div>
+      </transition>
 
     </form>
   </main>
