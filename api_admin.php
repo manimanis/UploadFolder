@@ -334,6 +334,35 @@ switch ($action) {
     fclose($output);
     exit;
 
+  case 'open_folder':
+    require_auth();
+    $date = $_GET['date'] ?? '';
+    $class = $_GET['class'] ?? '';
+    $poste = $_GET['poste'] ?? '';
+    $target = UPLOAD_DIR;
+    if ($date !== '') {
+      $target .= DIRECTORY_SEPARATOR . $date;
+    }
+    if ($class !== '') {
+      $target .= DIRECTORY_SEPARATOR . $class;
+    }
+    if ($poste !== '') {
+      $target .= DIRECTORY_SEPARATOR . $poste;
+    }
+    if (($date === '' && $class !== '') || ($date === '' && $class === '' && $poste !== '')) {
+      json_response(['error' => 'Paramètres manquants.']);
+    }
+    if (!is_dir($target) || !is_safe_path($target, UPLOAD_DIR)) {
+      json_response(['error' => 'Dossier introuvable.']);
+    }
+    if (PHP_OS_FAMILY === 'Windows') {
+      exec('explorer "' . $target . '"');
+    } else {
+      exec('xdg-open "' . $target . '"');
+    }
+    json_response(['success' => true]);
+    break;
+
   default:
     json_response(['error' => 'Action inconnue.']);
 }

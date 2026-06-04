@@ -399,6 +399,18 @@ new Vue({
       window.location.href = 'api_admin.php?action=download&path=' + encodeURIComponent(relativePath);
     },
 
+    openClassFolder: function (dateName='', className='', posteName='') {
+      fetch('api_admin.php?action=open_folder&date=' + encodeURIComponent(dateName) + '&class=' + encodeURIComponent(className) + '&poste=' + encodeURIComponent(posteName))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) {
+            this.showToast(data.error, 'error');
+          } else if (data.success) {
+            this.showToast('Dossier ouvert dans l\'explorateur.', 'success');
+          }
+        }.bind(this));
+    },
+
     downloadClass: function (className) {
       window.location.href = 'api_admin.php?action=download_class&class=' + encodeURIComponent(className);
     },
