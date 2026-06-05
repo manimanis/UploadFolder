@@ -268,45 +268,6 @@ new Vue({
       });
     },
 
-    deleteFile: function (relativePath, fileName) {
-      let self = this;
-      if (!confirm('Supprimer le fichier ' + fileName + ' ?')) return;
-      self.deleting = true;
-      let path = relativePath + '/' + fileName;
-      self.api('delete_file', { params: { path: path } }).then(function (data) {
-        if (data.error) {
-          self.showToast(data.error, 'error');
-        } else {
-          self.showToast('Fichier supprimé.', 'success');
-          self.loadData();
-        }
-        self.deleting = false;
-      });
-    },
-
-    deleteSelected: function () {
-      let self = this;
-      let files = self.allFiles.filter(function (f) { return self.checkedPaths[f.relativePath]; });
-      if (files.length === 0) {
-        self.showToast('Aucun fichier sélectionné.', 'info');
-        return;
-      }
-      if (!confirm('Supprimer ' + files.length + ' fichier(s) ?')) return;
-      self.deleting = true;
-      let paths = files.map(function (f) { return f.relativePath; });
-      let body = new FormData();
-      body.append('paths', JSON.stringify(paths));
-      self.api('delete_multiple', { body: body }).then(function (data) {
-        if (data.error) {
-          self.showToast(data.error, 'error');
-        } else {
-          self.showToast(data.success, 'success');
-          self.loadData();
-        }
-        self.deleting = false;
-      });
-    },
-
     toggleAllFiles: function (event) {
       let checked = event.target.checked;
       let self = this;

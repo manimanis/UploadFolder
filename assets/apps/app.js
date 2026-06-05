@@ -154,7 +154,7 @@ const app = new Vue({
 
       let totalSize = files.reduce(function (sum, file) { return sum + file.size; }, 0);
       if (totalSize > this.maxSizeBytes) {
-        this.showToast('Le dossier/fichier est trop volumineux. Taille max: 50 Mo.', 'error');
+        this.showToast('Le dossier/fichier est trop volumineux. Taille max: 100 Mo.', 'error');
         this.hideLoading();
         return null;
       }
@@ -549,11 +549,7 @@ const app = new Vue({
         this.saveSession();
       }
       if (this.effectiveClasse && this.poste) {
-        this.step = 4;
-      } else if (this.effectiveClasse) {
         this.step = 3;
-      } else {
-        this.step = 2;
       }
     },
 
@@ -562,11 +558,7 @@ const app = new Vue({
         this.saveSession();
       }
       if (this.effectiveClasse && this.poste) {
-        this.step = 4;
-      } else if (this.effectiveClasse) {
         this.step = 3;
-      } else {
-        this.step = 2;
       }
     },
 
@@ -576,8 +568,6 @@ const app = new Vue({
           this.step = 2;
         } else if (this.step === 2) {
           this.step = 3;
-        } else if (this.step === 3) {
-          this.step = 4;
         }
       }
     },

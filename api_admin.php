@@ -9,46 +9,60 @@ define('UPLOAD_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'upload_folder');
 define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'upload.log');
 
 // --- Helpers ---
-function json_response(array $data): void {
+function json_response(array $data): void
+{
   echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
   exit;
 }
 
-function require_auth(): void {
+function require_auth(): void
+{
   if (empty($_SESSION['admin_logged_in'])) {
     json_response(['error' => 'Non authentifié.']);
   }
 }
 
-function formatSize(int $bytes): string {
-  if ($bytes < 1024) return $bytes . ' o';
-  if ($bytes < 1048576) return round($bytes / 1024, 1) . ' Ko';
-  if ($bytes < 1073741824) return round($bytes / 1048576, 1) . ' Mo';
+function formatSize(int $bytes): string
+{
+  if ($bytes < 1024)
+    return $bytes . ' o';
+  if ($bytes < 1048576)
+    return round($bytes / 1024, 1) . ' Ko';
+  if ($bytes < 1073741824)
+    return round($bytes / 1048576, 1) . ' Mo';
   return round($bytes / 1073741824, 2) . ' Go';
 }
 
-function getDirSize(string $dir): int {
+function getDirSize(string $dir): int
+{
   $size = 0;
-  if (!is_dir($dir)) return 0;
+  if (!is_dir($dir))
+    return 0;
   $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS));
   foreach ($it as $file) {
-    if ($file->isFile()) $size += $file->getSize();
+    if ($file->isFile())
+      $size += $file->getSize();
   }
   return $size;
 }
 
-function countFiles(string $dir): int {
+function countFiles(string $dir): int
+{
   $count = 0;
-  if (!is_dir($dir)) return 0;
+  if (!is_dir($dir))
+    return 0;
   $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS));
   foreach ($it as $file) {
-    if ($file->isFile()) $count++;
+    if ($file->isFile())
+      $count++;
   }
   return $count;
 }
 
-function deleteRecursive(string $dir): bool {
-  if (!is_dir($dir)) return false;
+function deleteRecursive(string $dir): bool
+{
+  if (!is_dir($dir))
+    return false;
   $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
   $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
   foreach ($files as $file) {
@@ -61,13 +75,15 @@ function deleteRecursive(string $dir): bool {
   return rmdir($dir);
 }
 
-function is_safe_path(string $path, string $base): bool {
+function is_safe_path(string $path, string $base): bool
+{
   $real = realpath($path);
   $realBase = realpath($base);
   return $real !== false && $realBase !== false && strpos($real, $realBase) === 0;
 }
 
-function collectData(): array {
+function collectData(): array
+{
   $stats = ['total_files' => 0, 'total_size' => 0, 'classes' => []];
   $dates = [];
 
@@ -96,7 +112,8 @@ function collectData(): array {
           $posteSize = getDirSize($posteDir);
           $posteFiles = countFiles($posteDir);
 
-          if ($posteFiles === 0) continue;
+          if ($posteFiles === 0)
+            continue;
 
           $fileList = [];
           $zipFiles = glob($posteDir . '/*.zip');
@@ -214,7 +231,7 @@ switch ($action) {
     readfile($target);
     exit;
 
-  case 'download_multiple':
+  case 'download_multiple': {
     require_auth();
     $paths = json_decode($_POST['paths'] ?? '[]', true);
     if (!is_array($paths) || empty($paths)) {
@@ -226,7 +243,7 @@ switch ($action) {
     foreach ($paths as $p) {
       $target = UPLOAD_DIR . DIRECTORY_SEPARATOR . $p;
       if (is_safe_path($target, UPLOAD_DIR) && is_file($target)) {
-        $validFiles[] = ['path' => $target, 'archiveName' => basename($p)];
+        $validFiles[] = ['path' => $target, 'archiveName' => $p];
       }
     }
     if (empty($validFiles)) {
@@ -253,6 +270,7 @@ switch ($action) {
     http_response_code(500);
     echo 'Erreur lors de la création de l\'archive ZIP.';
     exit;
+  }
 
   case 'download_class':
     require_auth();
