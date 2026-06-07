@@ -1,1 +1,4 @@
 upload_folder/*
+/upload.log
+upload.log
+*.log
