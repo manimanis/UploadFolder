@@ -15,6 +15,7 @@ const app = new Vue({
     fichier: null,
     csrfToken: '',
     classeCustom: '',
+    lang: I18n ? I18n.currentLang : 'fr',
 
     // File size limit: 100 MB for the uncompressed data
     maxSizeBytes: 100 * 1024 * 1024
@@ -52,6 +53,9 @@ const app = new Vue({
     },
     effectiveClasse: function () {
       return this.classe === 'Autre' ? this.classeCustom : this.classe;
+    },
+    _lang: function () {
+      return this.lang;
     }
   },
   methods: {
@@ -518,6 +522,19 @@ const app = new Vue({
       this.step = 1;
     },
 
+    focusNextRadio: function (event, direction) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.target.click();
+        return;
+      }
+      let labels = Array.from(document.querySelectorAll('.radio-card'));
+      let currentIndex = labels.indexOf(event.target);
+      let nextIndex = currentIndex + direction;
+      if (nextIndex < 0) nextIndex = labels.length - 1;
+      if (nextIndex >= labels.length) nextIndex = 0;
+      labels[nextIndex].focus();
+    },
+
     onDataChanged: function (elemId) {
       this.elem = document.querySelector(elemId);
       let files = this.elem.files;
@@ -582,6 +599,18 @@ const app = new Vue({
 
     onUploadClicked: function () {
       this.sendZipFile();
+    },
+
+    setLang: function (lang) {
+      this.lang = lang;
+      if (I18n) I18n.setLang(lang);
+      this.$forceUpdate();
+    },
+
+    t: function (key) {
+      // Reference _lang to create reactive dependency
+      var _ = this._lang;
+      return I18n ? I18n.t(key) : key;
     }
   }
 });

@@ -7,6 +7,7 @@ header('Content-Type: application/json; charset=utf-8');
 define('ADMIN_PASSWORD', 'admin123');
 define('UPLOAD_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'upload_folder');
 define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'upload.log');
+define('EXAMS_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'exams.json');
 
 // --- Helpers ---
 function json_response(array $data): void
@@ -351,6 +352,180 @@ switch ($action) {
     }
     fclose($output);
     exit;
+
+  case 'exams_list':
+    require_auth();
+    $exams = [];
+    if (file_exists(EXAMS_FILE)) {
+      $raw = file_get_contents(EXAMS_FILE);
+      $exams = json_decode($raw, true);
+    }
+    // Sort by date descending, then by time_start descending
+    usort($exams['exams'], function ($a, $b) {
+      $da = ($a['date'] ?? '') . ' ' . ($a['time_start'] ?? '');
+      $db = ($b['date'] ?? '') . ' ' . ($b['time_start'] ?? '');
+      return strcmp($db, $da);
+    });
+    json_response([
+      'exams' => $exams['exams'] ?? [],
+      'noms' => $exams['noms'] ?? [],
+      'matieres' => $exams['matieres'] ?? [],
+      'enseignants' => $exams['enseignants'] ?? [],
+      'classes' => $exams['classes'] ?? []
+    ]);
+    break;
+
+  case 'exams_save':
+    require_auth();
+    $id = $_POST['id'] ?? '';
+    $name = $_POST['name'] ?? '';
+    $date = $_POST['date'] ?? '';
+    $time_start = $_POST['time_start'] ?? '';
+    $time_end = $_POST['time_end'] ?? '';
+    $subject = $_POST['subject'] ?? '';
+    $teacher = $_POST['teacher'] ?? '';
+    $classes_raw = $_POST['classes'] ?? '';
+    $classes = $classes_raw !== '' ? explode(',', $classes_raw) : [];
+
+    if ($name === '' || $date === '' || $time_start === '' || $time_end === '' || $subject === '' || $teacher === '') {
+      json_response(['error' => 'Tous les champs sont obligatoires.']);
+    }
+
+    // Load existing exams file
+    $exams = [];
+    $meta = [];
+    if (file_exists(EXAMS_FILE)) {
+      $raw = file_get_contents(EXAMS_FILE);
+      $decoded = json_decode($raw, true);
+      if (is_array($decoded)) {
+        $exams = $decoded['exams'] ?? [];
+        $meta = $decoded;
+        unset($meta['exams']);
+      }
+    }
+
+    if ($id !== '') {
+      // Update existing exam
+      $found = false;
+      foreach ($exams as &$exam) {
+        if (($exam['id'] ?? '') === $id) {
+          $exam['name'] = $name;
+          $exam['date'] = $date;
+          $exam['time_start'] = $time_start;
+          $exam['time_end'] = $time_end;
+          $exam['subject'] = $subject;
+          $exam['teacher'] = $teacher;
+          $exam['classes'] = $classes;
+          $found = true;
+          break;
+        }
+      }
+      unset($exam);
+      if (!$found) {
+        json_response(['error' => 'Examen introuvable.']);
+      }
+    } else {
+      // Create new exam
+      $exams[] = [
+        'id' => bin2hex(random_bytes(16)),
+        'name' => $name,
+        'date' => $date,
+        'time_start' => $time_start,
+        'time_end' => $time_end,
+        'subject' => $subject,
+        'teacher' => $teacher,
+        'classes' => $classes
+      ];
+    }
+
+    // Auto-collect metadata from all exams
+    $noms = [];
+    $matieres = [];
+    $enseignants = [];
+    $allClasses = [];
+    foreach ($exams as $exam) {
+      if (!empty($exam['name'])) $noms[] = $exam['name'];
+      if (!empty($exam['subject'])) $matieres[] = $exam['subject'];
+      if (!empty($exam['teacher'])) $enseignants[] = $exam['teacher'];
+      if (!empty($exam['classes']) && is_array($exam['classes'])) {
+        foreach ($exam['classes'] as $c) {
+          $c = trim($c);
+          if ($c !== '') $allClasses[] = $c;
+        }
+      }
+    }
+    $noms = array_values(array_unique($noms));
+    $matieres = array_values(array_unique($matieres));
+    $enseignants = array_values(array_unique($enseignants));
+    $allClasses = array_values(array_unique($allClasses));
+
+    $data = [
+      'noms' => $noms,
+      'matieres' => $matieres,
+      'enseignants' => $enseignants,
+      'classes' => $allClasses,
+      'exams' => $exams
+    ];
+
+    file_put_contents(EXAMS_FILE, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    json_response(['success' => true]);
+    break;
+
+  case 'exams_delete':
+    require_auth();
+    $id = $_POST['id'] ?? '';
+    if ($id === '') {
+      json_response(['error' => 'ID manquant.']);
+    }
+
+    $exams = [];
+    $meta = [];
+    if (file_exists(EXAMS_FILE)) {
+      $raw = file_get_contents(EXAMS_FILE);
+      $decoded = json_decode($raw, true);
+      if (is_array($decoded)) {
+        $exams = $decoded['exams'] ?? [];
+        $meta = $decoded;
+        unset($meta['exams']);
+      }
+    }
+
+    $exams = array_values(array_filter($exams, function ($e) use ($id) {
+      return ($e['id'] ?? '') !== $id;
+    }));
+
+    // Re-collect metadata from remaining exams
+    $noms = [];
+    $matieres = [];
+    $enseignants = [];
+    $allClasses = [];
+    foreach ($exams as $exam) {
+      if (!empty($exam['name'])) $noms[] = $exam['name'];
+      if (!empty($exam['subject'])) $matieres[] = $exam['subject'];
+      if (!empty($exam['teacher'])) $enseignants[] = $exam['teacher'];
+      if (!empty($exam['classes']) && is_array($exam['classes'])) {
+        foreach ($exam['classes'] as $c) {
+          $c = trim($c);
+          if ($c !== '') $allClasses[] = $c;
+        }
+      }
+    }
+    $noms = array_values(array_unique($noms));
+    $matieres = array_values(array_unique($matieres));
+    $enseignants = array_values(array_unique($enseignants));
+    $allClasses = array_values(array_unique($allClasses));
+
+    $data = [
+      'noms' => $noms,
+      'matieres' => $matieres,
+      'enseignants' => $enseignants,
+      'classes' => $allClasses,
+      'exams' => $exams
+    ];
+
+    file_put_contents(EXAMS_FILE, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    json_response(['success' => true]);
+    break;
 
   case 'open_folder':
     require_auth();

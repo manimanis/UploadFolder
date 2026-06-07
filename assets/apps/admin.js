@@ -26,11 +26,33 @@ new Vue({
     },
     dates: {},
     logLines: [],
-    toast: { show: false, message: '', type: 'success' }
+    toast: { show: false, message: '', type: 'success' },
+    meta: {
+      noms: [],
+      matieres: [],
+      enseignants: [],
+      classes: []
+    },
+    exams: [],
+    examForm: {
+      id: '',
+      name: '',
+      date: new Date().toISOString().slice(0, 10),
+      time_start: '08:00',
+      time_end: '12:00',
+      subject: '',
+      teacher: '',
+      classes: ''
+    },
+    showForm: false,
+    lang: I18n ? I18n.currentLang : 'fr',
+    selectedTeacher: '',
+    selectedClass: ''
   },
   computed: {
     filteredDates: function () {
       let query = this.searchQuery.toLowerCase().trim();
+      let selectedClass = this.selectedClass;
       let result = {};
       let dates = this.dates;
 
@@ -45,6 +67,10 @@ new Vue({
         let classKeys = Object.keys(dateEntry.classes);
         for (let j = 0; j < classKeys.length; j++) {
           let className = classKeys[j];
+
+          // Filter by selected class
+          if (selectedClass && className !== selectedClass) continue;
+
           let postes = dateEntry.classes[className];
           let filteredPostes = {};
 
@@ -144,14 +170,43 @@ new Vue({
         if (self.checkedPaths[f.relativePath]) count++;
       });
       return count;
+    },
+    filteredExams: function () {
+      return this.exams.filter((exam) => {
+        return this.selectedTeacher ? exam.teacher === this.selectedTeacher : true;
+      });
+    },
+    t: function () {
+      var lang = this.lang;
+      return function (key) {
+        return I18n ? I18n.t(key) : key;
+      };
+    }
+  },
+  watch: {
+    activeTab: function (tab) {
+      this.saveConfig();
+      if (tab === 'exams') this.initExamsTab();
+      if (tab === 'log') this.loadLog();
     }
   },
   mounted: function () {
-    this.darkMode = localStorage.getItem('admin_darkMode') === 'true';
-    if (this.darkMode) document.documentElement.setAttribute('data-theme', 'dark');
+    this.loadConfig();
     this.checkAuth();
   },
   methods: {
+    loadConfig: function () {
+      var tab = localStorage.getItem('admin_activeTab');
+      if (tab) this.activeTab = tab;
+      this.darkMode = localStorage.getItem('admin_darkMode') === 'true';
+      if (this.darkMode) document.documentElement.setAttribute('data-theme', 'dark');
+    },
+
+    saveConfig: function () {
+      localStorage.setItem('admin_activeTab', this.activeTab);
+      localStorage.setItem('admin_darkMode', this.darkMode ? 'true' : 'false');
+    },
+
     api: function (action, options) {
       let url = 'api_admin.php?action=' + encodeURIComponent(action);
       if (options && options.params) {
@@ -175,7 +230,7 @@ new Vue({
 
     toggleDarkMode: function () {
       this.darkMode = !this.darkMode;
-      localStorage.setItem('admin_darkMode', this.darkMode);
+      this.saveConfig();
       if (this.darkMode) {
         document.documentElement.setAttribute('data-theme', 'dark');
       } else {
@@ -234,6 +289,113 @@ new Vue({
         self.authenticated = false;
         self.password = '';
         if (self.autoRefreshInterval) clearInterval(self.autoRefreshInterval);
+      });
+    },
+
+    loadExams: function () {
+      let self = this;
+      self.api('exams_list').then(function (data) {
+        if (data.error) {
+          self.showToast(data.error, 'error');
+          return;
+        }
+        self.exams = data.exams || [];
+        self.meta = {
+          noms: data.noms || [],
+          matieres: data.matieres || [],
+          enseignants: data.enseignants || [],
+          classes: data.classes || []
+        };
+      });
+    },
+
+    saveExam: function () {
+      let self = this;
+      let body = new FormData();
+      body.append('id', self.examForm.id);
+      body.append('name', self.examForm.name);
+      body.append('date', self.examForm.date);
+      body.append('time_start', self.examForm.time_start);
+      body.append('time_end', self.examForm.time_end);
+      body.append('subject', self.examForm.subject);
+      body.append('teacher', self.examForm.teacher);
+      body.append('classes', self.examForm.classes);
+
+      self.api('exams_save', { body: body }).then(function (data) {
+        if (data.error) {
+          self.showToast(data.error, 'error');
+          return;
+        }
+        self.showToast(self.examForm.id ? 'Examen modifié.' : 'Examen ajouté.', 'success');
+        self.showForm = false;
+        self.resetExamForm();
+        self.loadExams();
+      });
+    },
+
+    showAddForm: function () {
+      this.resetExamForm();
+      this.showForm = true;
+    },
+
+    cancelForm: function () {
+      this.showForm = false;
+      this.resetExamForm();
+    },
+
+    editExam: function (exam) {
+      this.examForm = {
+        id: exam.id,
+        name: exam.name,
+        date: exam.date,
+        time_start: exam.time_start,
+        time_end: exam.time_end,
+        subject: exam.subject,
+        teacher: exam.teacher,
+        classes: (exam.classes || []).join(', ')
+      };
+      this.showForm = true;
+    },
+
+    deleteExam: function (exam) {
+      let self = this;
+      if (!confirm('Supprimer l\'examen « ' + exam.name + ' » ?')) return;
+      let body = new FormData();
+      body.append('id', exam.id);
+      self.api('exams_delete', { body: body }).then(function (data) {
+        if (data.error) {
+          self.showToast(data.error, 'error');
+          return;
+        }
+        self.showToast('Examen supprimé.', 'success');
+        if (self.examForm.id === exam.id) {
+          self.resetExamForm();
+        }
+        self.loadExams();
+      });
+    },
+
+    resetExamForm: function () {
+      this.examForm = {
+        id: '',
+        name: '',
+        date: new Date().toISOString().slice(0, 10),
+        time_start: '08:00',
+        time_end: '12:00',
+        subject: '',
+        teacher: '',
+        classes: ''
+      };
+    },
+
+    selectEnseignant: function (enseignant) {
+      this.selectedTeacher = enseignant;
+    },
+
+    getExamsByTeacher: function (enseignant) {
+      if (this.selectedTeacher && this.selectedTeacher !== enseignant) return [];
+      return this.exams.filter(function (exam) {
+        return exam.teacher === enseignant;
       });
     },
 
@@ -401,6 +563,17 @@ new Vue({
         return parts.slice(1).join('_').replace(/-/g, '.');
       }
       return '—';
+    },
+
+    setLang: function (lang) {
+      this.lang = lang;
+      if (I18n) I18n.setLang(lang);
+      this.$forceUpdate();
+    },
+
+
+    initExamsTab: function () {
+      this.loadExams();
     }
   }
 });

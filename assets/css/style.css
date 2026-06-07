@@ -654,6 +654,34 @@ h1 {
 }
 
 /* ============================================================
+   MOBILE STICKY SUBMIT BUTTON
+   ============================================================ */
+@media (max-width: 575.98px) {
+  #upload-btn {
+    position: sticky;
+    bottom: 20px;
+    z-index: 100;
+    width: 100%;
+    box-shadow: 0 4px 20px rgba(8, 112, 185, 0.5);
+  }
+}
+
+/* ============================================================
+   KEYBOARD NAVIGATION - RADIO CARDS
+   ============================================================ */
+.radio-card:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.radio-card input[type="radio"]:focus + img + span,
+.radio-card input[type="radio"]:focus ~ span {
+  outline: 2px dashed var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================================
    UTILITY
    ============================================================ */
 .badge {

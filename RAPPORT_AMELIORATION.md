@@ -1,46 +1,57 @@
 # Rapport d'Analyse — Projet "Upload de Travaux"
 
-**Date :** 04/06/2026
-**Technologies :** Vue.js 2, PHP 8, JSZip, Bootstrap 5, CSS3
-**Score de santé :** 9 / 10
-**Risque sécurité :** FAIBLE
+**Version :** 2.0.0  
+**Date :** 07/06/2026  
+**Technologies :** Vue.js 2, PHP 8, JSZip, Bootstrap 5, CSS3  
+**Score de santé :** 9 / 10  
+**Risque sécurité :** FAIBLE  
+**License :** MIT
 
 ---
 
-## 1. Correctifs déjà appliqués (Terminés)
+## 1. Correctifs et améliorations appliqués
 
-### Sécurité
+### 🔒 Sécurité
 - Blocage `..` dans `sanitizePathComponent()`
 - `.htaccess` avec `php_flag engine off` dans `upload_folder/`
 - Validation MIME + ouverture réelle ZIP avec ZipArchive
 - Token CSRF (génération + validation)
 
-### Robustesse
+### 🛡️ Robustesse
 - Rate limiting IP-based (1 upload / 30s)
 - Journalisation des uploads dans `upload.log`
 - Gestion d'erreurs JS (`fetchClasses`, `getElementById`)
 - Correction fuite mémoire drag & drop
 
-### UX/UI
+### ✨ UX/UI
 - Transitions entre steps
 - Classe "Autre" fonctionnelle
 - Indicateur "Étape X/4" dans le stepper
 
-### Code
+### 🧹 Code
 - `var` → `let`
 - Logique `onClasseChanged` clarifiée
 - `jszip.js` supprimé (non minifié)
 - `declare(strict_types=1)` en PHP
 
-### Administration
+### 📋 Gestion des examens (Nouveau v2.0)
+- Formulaire d'ajout/modification masqué par défaut, affiché sur clic
+- Ajout du champ **classes** (séparées par des virgules)
+- Regroupement des examens par **enseignant** avec filtres visuels
+- Suggestions automatiques (autocomplete) pour noms, matières, enseignants et classes
+- Métadonnées collectées automatiquement depuis tous les examens enregistrés
+
+### ⚙️ Administration
 - Page admin avec API REST + Vue.js SPA
-- 3 onglets : Arborescence, Statistiques, Journal
+- 4 onglets : Arborescence, Statistiques, **Examens**, Journal
 - Suppression/Téléchargement par sélection
 - Export CSV, thème sombre, rafraîchissement auto
+- **Persistance des préférences** (onglet actif, thème) via `localStorage`
+- Méthodes `loadConfig()` / `saveConfig()` pour une gestion centralisée
 
 ---
 
-## 2. Améliorations possibles
+## 2. Améliorations possibles (recommandations)
 
 ### 🔒 Sécurité
 
@@ -88,7 +99,6 @@
 | 20 | **Support multi-langue** | `index.php`, `app.js`, `upload.php` | Ajouter un système i18n simple (français/anglais) |
 | 21 | **Mode hors-ligne (PWA)** | Nouveaux fichiers | Service worker + manifest pour utiliser l'app sans connexion |
 | 22 | **Scan antivirus** | `upload.php` | Intégrer ClamAV pour scanner les ZIP avant stockage |
-| 23 | **Barre de progression upload** | `app.js` | Remplacer le spinner par une vraie barre de progression |
 
 ---
 
@@ -107,8 +117,25 @@
 | Basse | 15 | Refactoring PHP | 2h |
 | Basse | 16 | Cache busting assets | 15 min |
 | Basse | 17 | Nettoyage fichiers inutilisés | 15 min |
-| Optionnel | 18-23 | Évolutions | Variable |
+| Optionnel | 18-22 | Évolutions | Variable |
 
 ---
 
-*Rapport généré le 04/06/2026.*
+## 4. Journal des versions
+
+### v1.0.0 (04/06/2026)
+- Version initiale
+- Upload dossiers/fichiers/code
+- Administration de base (3 onglets)
+
+### v2.0.0 (07/06/2026)
+- ✨ Gestion complète des examens avec classes
+- 📋 Regroupement par enseignant avec filtres
+- 🔄 Persistance des préférences (onglet, thème)
+- 🎨 Formulaire d'examen masqué par défaut
+- 🏷️ Ajout des métadonnées (noms, matières, enseignants, classes)
+- 📝 README et rapport mis à jour
+
+---
+
+*Rapport généré le 07/06/2026.*

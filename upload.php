@@ -2,6 +2,48 @@
 declare(strict_types=1);
 session_start();
 
+// --- Pre-flight checks ---
+
+/**
+ * Check PHP configuration at startup
+ */
+$required_min_mb = 100;
+$upload_max = ini_get('upload_max_filesize');
+$post_max = ini_get('post_max_size');
+
+$upload_max_bytes = return_bytes($upload_max);
+$post_max_bytes = return_bytes($post_max);
+$required_bytes = $required_min_mb * 1024 * 1024;
+
+if ($upload_max_bytes < $required_bytes || $post_max_bytes < $required_bytes) {
+  die(json_encode(["error" => "Configuration PHP insuffisante. " .
+    "upload_max_filesize = {$upload_max}, post_max_size = {$post_max}. " .
+    "Minimum requis : {$required_min_mb}M."]));
+}
+
+if (!class_exists('ZipArchive')) {
+  die(json_encode(["error" => "L'extension PHP Zip (ZipArchive) est requise mais n'est pas activée."]));
+}
+
+/**
+ * Convert PHP shorthand size string (e.g. '100M', '1G') to bytes
+ */
+function return_bytes($val)
+{
+  $val = trim($val);
+  $last = strtolower(substr($val, -1));
+  $val = (int) $val;
+  switch ($last) {
+    case 'g':
+      $val *= 1024;
+    case 'm':
+      $val *= 1024;
+    case 'k':
+      $val *= 1024;
+  }
+  return $val;
+}
+
 /**
  * Sanitize a string for use in file paths
  * Removes accents, special chars, prevents path traversal
@@ -89,6 +131,17 @@ if (!isset($_FILES['files']) || !isset($_FILES['files']['tmp_name']) || empty($_
 $upload_tmp = $_FILES['files']['tmp_name'];
 $upload_name = basename($_FILES['files']['name']);
 
+// --- Validate uploaded filename ---
+if (!preg_match('/^[a-zA-Z0-9_\-\.\s]+$/', $upload_name)) {
+  jsonError("Le nom du fichier contient des caractères non autorisés.");
+}
+if (strlen($upload_name) > 255) {
+  jsonError("Le nom du fichier est trop long.");
+}
+if ($upload_name === '' || $upload_name === '.' || $upload_name === '..') {
+  jsonError("Nom de fichier invalide.");
+}
+
 // --- File size validation (PHP side max 100MB) ---
 $max_size = 100 * 1024 * 1024; // 100 MB
 $file_size = filesize($upload_tmp);
@@ -106,8 +159,20 @@ if (!in_array($mime, $allowed_mimes)) {
   jsonError("Type de fichier non accepté. Seuls les fichiers ZIP sont autorisés.");
 }
 
+// --- Ensure upload_folder exists with .htaccess protection ---
+$base_upload_folder = __DIR__ . DIRECTORY_SEPARATOR . "upload_folder";
+if (!is_dir($base_upload_folder)) {
+  if (!mkdir($base_upload_folder, 0755, true)) {
+    jsonError("Erreur interne : impossible de créer le dossier d'upload.");
+  }
+}
+$htaccess = $base_upload_folder . DIRECTORY_SEPARATOR . ".htaccess";
+if (!file_exists($htaccess)) {
+  @file_put_contents($htaccess, "Options -Indexes\nOrder Deny,Allow\nDeny from all\n");
+}
+
 // --- Create organized upload directory ---
-$upload_folder = __DIR__ . DIRECTORY_SEPARATOR . "upload_folder";
+$upload_folder = $base_upload_folder;
 foreach ([date('Ymd'), str_replace(' ', '-', $classe), str_replace(' ', '-', $poste)] as $subfolder) {
   $upload_folder .= DIRECTORY_SEPARATOR . $subfolder;
 }
@@ -118,33 +183,12 @@ if (!is_dir($upload_folder)) {
   }
 }
 
-// Validate ZIP file (with fallback if ZipArchive extension is not available)
-if (class_exists('ZipArchive')) {
-  $zip = new ZipArchive();
-  if ($zip->open($upload_tmp) !== TRUE) {
-    jsonError("Le fichier n'est pas une archive ZIP valide.");
-  }
-  $zip->close();
-} elseif (function_exists('zip_open')) {
-  $zip = @zip_open($upload_tmp);
-  if (is_resource($zip)) {
-    zip_close($zip);
-  } else {
-    jsonError("Le fichier n'est pas une archive ZIP valide.");
-  }
-} else {
-  // Fallback: check ZIP magic bytes (PK\x03\x04)
-  $handle = @fopen($upload_tmp, 'rb');
-  if ($handle) {
-    $magic = fread($handle, 4);
-    fclose($handle);
-    if ($magic !== "PK\x03\x04" && $magic !== "PK\x05\x06" && $magic !== "PK\x07\x08") {
-      jsonError("Le fichier n'est pas une archive ZIP valide.");
-    }
-  } else {
-    jsonError("Impossible de vérifier le fichier uploadé.");
-  }
+// Validate ZIP file (ZipArchive checked in pre-flight)
+$zip = new ZipArchive();
+if ($zip->open($upload_tmp) !== TRUE) {
+  jsonError("Le fichier n'est pas une archive ZIP valide.");
 }
+$zip->close();
 
 // --- Generate unique filename ---
 $file = date('Ymd_His');

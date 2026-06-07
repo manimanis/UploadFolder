@@ -1,0 +1,74 @@
+{
+    "noms": [
+        "Devoir de contrôle 1",
+        "Evaluation Pratique n°1"
+    ],
+    "matieres": [
+        "Informatique",
+        "STI"
+    ],
+    "enseignants": [
+        "M. Mohamed Anis MANI",
+        "M. Slim Dorgham",
+        "Nada Achour"
+    ],
+    "classes": [
+        "2INFO1",
+        "3TECH2",
+        "3INFO1",
+        "3INFO2",
+        "2INFO2"
+    ],
+    "exams": [
+        {
+            "id": "fbfb4f36f951e06688df75818128436b",
+            "name": "Devoir de contrôle 1",
+            "date": "2026-06-07",
+            "time_start": "08:00",
+            "time_end": "12:00",
+            "subject": "Informatique",
+            "teacher": "M. Mohamed Anis MANI",
+            "classes": [
+                "2INFO1",
+                " 3TECH2"
+            ]
+        },
+        {
+            "id": "9656a14c9218e5742ee501c262af23ff",
+            "name": "Devoir de contrôle 1",
+            "date": "2026-06-07",
+            "time_start": "08:00",
+            "time_end": "12:00",
+            "subject": "STI",
+            "teacher": "M. Slim Dorgham",
+            "classes": [
+                "3INFO1",
+                " 3INFO2"
+            ]
+        },
+        {
+            "id": "35c8b25f0bceaf8be1b3dff56c1faadb",
+            "name": "Evaluation Pratique n°1",
+            "date": "2026-06-07",
+            "time_start": "08:00",
+            "time_end": "12:00",
+            "subject": "Informatique",
+            "teacher": "Nada Achour",
+            "classes": [
+                "2INFO2"
+            ]
+        },
+        {
+            "id": "f6a34de077a1034441eebefbf27dfb46",
+            "name": "Evaluation Pratique n°1",
+            "date": "2026-06-25",
+            "time_start": "08:00",
+            "time_end": "12:00",
+            "subject": "Informatique",
+            "teacher": "M. Mohamed Anis MANI",
+            "classes": [
+                "2INFO1"
+            ]
+        }
+    ]
+}
