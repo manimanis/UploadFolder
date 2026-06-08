@@ -112,12 +112,10 @@ const app = new Vue({
       const canGotoStep2 = canGotoStep1 && this.selectedFilesInfos?.length > 0;
       const canGotoStep3 = canGotoStep2 && this.curExam.isValid();
 
-      console.log(numStep, canGotoStep1, canGotoStep2, canGotoStep3);
-
-      return (numStep === 0) ||
+      return (numStep >= 0 && numStep <= 3) && ((numStep === 0) ||
         (numStep === 1 && canGotoStep1) ||
         (numStep === 2 && canGotoStep2) ||
-        (numStep === 3 && canGotoStep3);
+        (numStep === 3 && canGotoStep3));
     },
 
     gotoStep: function (targetStep) {
@@ -587,7 +585,7 @@ const app = new Vue({
         self.selectedFilesInfos = flatInfos;
         self.elem = { files: flatFiles };
         self.files = flatFiles;
-        self.step = 2;
+        self.gotoStep(self.maxStep());
         return;
       }
 
@@ -627,9 +625,8 @@ const app = new Vue({
             self.elem = { files: fileList };
             self.files = fileList;
 
-            console.log("isValidInfos: ", self.isValidInfos(self.curExam));
             // Jump to INFO step (step 2)
-            self.step = 2 + self.isValidInfos(self.curExam);
+            self.gotoStep(self.maxStep());
           }
         });
       });
@@ -697,8 +694,7 @@ const app = new Vue({
           size: this.elem.value.length
         });
       }
-
-      console.log("max step: ", this.maxStep());
+      
       this.gotoStep(this.maxStep());
     },
 
