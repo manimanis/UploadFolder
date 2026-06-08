@@ -105,7 +105,7 @@ $csrf_token = $_SESSION['csrf_token'];
     <form id="form" method="post" enctype="multipart/form-data" novalidate>
       <!-- STEP 0: Type Selection -->
       <transition name="step" mode="out-in">
-        <div v-if="step === 0" class="step-card">
+        <div v-show="step === 0" class="step-card">
           <fieldset>
             <legend><span class="card-icon">📁</span>Je veux envoyer :</legend>
             <div class="row">
@@ -211,14 +211,14 @@ $csrf_token = $_SESSION['csrf_token'];
                   <span class="fs-6 fw-light">{{ exam.teacher }}</span>
                 </button>
                 <button type="button" class="btn btn-sm"
-                  v-bind:class="selectedExamId === 'autre' ? 'btn-primary' : 'btn-outline-primary'"
+                  v-bind:class="curExam.id === 'autre' ? 'btn-primary' : 'btn-outline-primary'"
                   v-on:click="selectExam('autre')">Autre</button>
               </div>
               <p v-if="todayExams.length === 0" class="text-muted mt-1 mb-0" style="font-size:0.85rem;">Aucun examen
                 prévu pour aujourd'hui.</p>
             </div>
 
-            <div v-if="selectedExamId === 'autre'">
+            <div>
               <!-- Enseignant -->
               <div class="my-2">
                 <label for="enseignant" class="form-label">Enseignant</label>
@@ -229,34 +229,58 @@ $csrf_token = $_SESSION['csrf_token'];
                 </datalist>
               </div>
 
-              <!-- Classe -->
-              <div class="my-2">
-                <label for="classe-autre" class="form-label">Classe</label>
-                <input id="classe-autre" type="text" class="form-control" v-model="curExam.classes[0]"
-                  v-on:change="onFormDataChanged()" placeholder="Ex: 1INFO2" required list="classes">
-                <datalist id="classes">
-                  <option v-for="classe in classes" v-bind:value="classe">{{ classe }}</option>
-                </datalist>
+              <div class="row my-2">
+                <!-- Classe -->
+                <div class="col-sm-4">
+                  <label for="classe-autre" class="form-label">Classe</label>
+                  <input id="classe-autre" type="text" class="form-control" v-model="curExam.classes[0]"
+                    v-on:change="onFormDataChanged()" placeholder="Ex: 1INFO2" required list="classes">
+                  <datalist id="classes">
+                    <option v-for="classe in classes" v-bind:value="classe">{{ classe }}</option>
+                  </datalist>
+                </div>
+
+                <!-- Matière -->
+                <div class="col-sm-4">
+                  <label for="matiere" class="form-label">Matière</label>
+                  <input id="matiere" type="text" class="form-control" v-model="curExam.subject"
+                    v-on:change="onFormDataChanged()" placeholder="Ex: Informatique" required list="matieres">
+                  <datalist id="matieres">
+                    <option v-for="matiere in subjects" v-bind:value="matiere">{{ matiere }}</option>
+                  </datalist>
+                </div>
+
+                <!-- Epreuve -->
+                <div class="col-sm-4"><label for="epreuve" class="form-label">Epreuve</label>
+                  <input id="epreuve" type="text" class="form-control" v-model="curExam.name"
+                    v-on:change="onFormDataChanged()" placeholder="Ex: Informatique" required list="epreuves">
+                  <datalist id="epreuves">
+                    <option v-for="epreuve in sessions" v-bind:value="epreuve">{{ epreuve }}</option>
+                  </datalist>
+                </div>
               </div>
 
-              <!-- Matière -->
-              <div class="my-2">
-                <label for="matiere" class="form-label">Matière</label>
-                <input id="matiere" type="text" class="form-control" v-model="curExam.subject"
-                  v-on:change="onFormDataChanged()" placeholder="Ex: Informatique" required list="matieres">
-                <datalist id="matieres">
-                  <option v-for="matiere in subjects" v-bind:value="matiere">{{ matiere }}</option>
-                </datalist>
-              </div>
+              <div class="row my-2">
+                <!-- Date -->
+                <div class="col-sm-4">
+                  <label for="date" class="form-label">Date</label>
+                  <input id="date" type="date" class="form-control" v-model="curExam.date"
+                    v-on:change="onFormDataChanged()" required>
+                </div>
 
-              <!-- Epreuve -->
-              <div class="my-2">
-                <label for="epreuve" class="form-label">Epreuve</label>
-                <input id="epreuve" type="text" class="form-control" v-model="curExam.name"
-                  v-on:change="onFormDataChanged()" placeholder="Ex: Informatique" required list="epreuves">
-                <datalist id="epreuves">
-                  <option v-for="epreuve in sessions" v-bind:value="epreuve">{{ epreuve }}</option>
-                </datalist>
+                <!-- Date début (heure de début) -->
+                <div class="col-sm-4">
+                  <label for="date-debut" class="form-label">Date début</label>
+                  <input id="date-debut" type="time" class="form-control" v-model="curExam.time_start"
+                    v-on:change="onFormDataChanged()" required>
+                </div>
+
+                <!-- Date fin (heure de fin) -->
+                <div class="col-sm-4">
+                  <label for="date-fin" class="form-label">Date fin</label>
+                  <input id="date-fin" type="time" class="form-control" v-model="curExam.time_end"
+                    v-on:change="onFormDataChanged()" required>
+                </div>
               </div>
             </div>
 

@@ -1,7 +1,7 @@
 class Exam {
   constructor(examData = {}) {
     const now = new Date();
-    this.id = examData.id || '';
+    this.id = examData.id || 'autre';
     this.name = examData.name || '';
     this.date = examData.date || now.toISOString().substring(0, 10);
     this.time_start = examData.time_start || (now.getHours() >= 13 ? "14:00" : "08:00");
@@ -31,7 +31,6 @@ const app = new Vue({
     typeData: '',
     elem: null,
 
-    selectedExamId: "",
     curExam: new Exam(),
 
     uploading: false,
