@@ -1,2 +1,18 @@
 # Sécurité : désactiver l'affichage du contenu des répertoires
 Options -Indexes
+
+# Empêcher l'accès direct aux fichiers de données sensibles
+<FilesMatch "^(admin\.hash|login_attempts\.log|hashes\.log)$">
+  Require all denied
+</FilesMatch>
+
+# Empêcher l'accès au générateur de hash admin (mesure de sécurité supplémentaire)
+# Recommandation : supprimer complètement ce fichier après utilisation
+<Files "generate_admin_hash.php">
+  Require all denied
+</Files>
+
+# Protection contre l'accès aux fichiers de backup
+<FilesMatch "\.bak\.">
+  Require all denied
+</FilesMatch>

@@ -30,7 +30,6 @@ const app = new Vue({
     step: 0,
     typeData: '',
     elem: null,
-    selectedExamId: '',
 
     curExam: new Exam(),
 
@@ -223,7 +222,6 @@ const app = new Vue({
     },
 
     selectExam: function (examId) {
-      this.selectedExamId = examId;
       let exam = this.exams.find(ex => ex.id === examId);
       if (!exam) {
         exam = this.curExam;
@@ -799,7 +797,6 @@ const app = new Vue({
 
     // ---- #47 Page de garde publique : examens à venir ----
     selectUpcomingExam: function (exam) {
-      this.selectedExamId = exam.id;
       this.curExam = new Exam(exam);
       this.saveSession();
       this.step = 0;

@@ -140,13 +140,34 @@ UploadFolder/
 ## 🔧 Personnalisation
 
 ### Changer le mot de passe admin
+
+#### Méthode 1 : Interface web (recommandé)
+
+1. Accéder à `http://localhost/UploadFolder/generate_admin_hash.php`
+2. Saisir le nouveau mot de passe et cliquer sur « Générer le hash »
+3. Cliquer sur le bouton « 💾 Écrire automatiquement dans data/admin.hash »
+4. **Supprimer `generate_admin_hash.php` après utilisation**
+
+#### Méthode 2 : Ligne de commande
+
 ```bash
-# 1. Calculer le hash bcrypt
+# 1. Générer le hash
+php generate_admin_hash.php "MonNouveauMotDePasse"
+
+# 2. Copier le hash affiché et le coller dans data/admin.hash (en remplaçant la valeur existante)
+```
+
+#### Méthode 3 : PHP one-liner
+
+```bash
+# Génère un hash
 php -r "echo password_hash('votre_nouveau_mdp', PASSWORD_BCRYPT);"
 
-# 2. Le mettre dans data/admin.hash (en remplaçant la valeur existante)
+# Le mettre dans data/admin.hash
 echo '$2y$10$...votre_hash...' > data/admin.hash
 ```
+
+> 🔒 **Important** : `generate_admin_hash.php` permet à n'importe qui ayant accès au serveur web de générer un hash. **Supprimez ce fichier après chaque utilisation.**
 
 ### Limites
 - Taille max fichier : 100 Mo (vérifiée côté client ET serveur)
