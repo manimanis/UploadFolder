@@ -1,14 +1,15 @@
 class Exam {
   constructor(examData = {}) {
+    const now = new Date();
     this.id = examData.id || '';
     this.name = examData.name || '';
-    this.date = examData.date || '';
-    this.time_start = examData.time_start || '';
-    this.time_end = examData.time_end || '';
+    this.date = examData.date || now.toISOString().substring(0, 10);
+    this.time_start = examData.time_start || (now.getHours() >= 13 ? "14:00" : "08:00");
+    this.time_end = examData.time_end || (now.getHours() >= 13 ? "18:00" : "12:00");
     this.subject = examData.subject || '';
     this.teacher = examData.teacher || '';
     this.classes = examData.classes || [];
-    this.poste = examData.poste || '';
+    this.poste = examData.poste || 'Poste 1';
   }
 
   isValid() {
@@ -32,8 +33,6 @@ const app = new Vue({
 
     selectedExamId: "",
     curExam: new Exam(),
-    formExam: new Exam(),
-
 
     uploading: false,
     selectedFilesInfos: [],
@@ -98,27 +97,51 @@ const app = new Vue({
   },
   methods: {
     // ---- Navigation ----
-    goToStep: function (targetStep) {
-      let feedback = '';
+    canGotoStep(numStep) {
+      const canGotoStep1 = this.typeData !== '';
+      const canGotoStep2 = canGotoStep1 && this.selectedFilesInfos?.length > 0;
+      const canGotoStep3 = canGotoStep2 && this.curExam.isValid();
+
+      console.log(numStep, canGotoStep1, canGotoStep2, canGotoStep3);
+
+      return (numStep === 0) ||
+        (numStep === 1 && canGotoStep1) ||
+        (numStep === 2 && canGotoStep2) ||
+        (numStep === 3 && canGotoStep3);
+    },
+
+    gotoStep: function (targetStep) {
+      let canStep = this.canGotoStep(targetStep);
       let nextStep = this.step;
-      if (targetStep == 0) {
-        nextStep = 0;
-      } else if (targetStep === 1) {
-        if (this.typeData === '') {
-          feedback = 'Veuillez sélectionner un type de données';
-        } else {
-          nextStep = targetStep;
+
+      if (canStep) {
+        if (targetStep === 3) {
+          this.saveSession();
         }
-      } else if (this.typeData !== '' && targetStep === 2) {
-        this.formExam = new Exam(this.curExam);
-        nextStep = 2;
-      } else if (this.typeData !== '' && this.isValidInfos(this.formExam) && targetStep === 3) {
-        this.curExam = this.formExam;
-        this.saveSession();
-        nextStep = 3;
+        nextStep = targetStep;
+      } else {
+        let feedback = "";
+        if (targetStep >= 1) {
+          feedback = 'Veuillez sélectionner un type de données';
+        }
+        if (targetStep >= 2) {
+          feedback = 'Veuillez sélectionner les données à soumettre\n';
+        }
+        if (targetStep >= 3) {
+          feedback = 'Veuillez remplir les données du formulaire\n';
+        }
+        this.showToast(feedback.replaceAll("\n", "<br>"), 'error');
       }
-      this.feedback = feedback;
+
       this.step = nextStep;
+    },
+
+    maxStep() {
+      let step = 0;
+      while (step + 1 <= 3 && this.canGotoStep(step + 1)) {
+        step++;
+      }
+      return step;
     },
 
     // ---- Stepper Classes ----
@@ -126,16 +149,15 @@ const app = new Vue({
       if (this.step > stepIndex) {
         return { completed: true };
       }
-      if (stepIndex === 0 && this.step === 0) { return { active: true }; }
-      if (stepIndex === 1 && this.step === 1) { return { active: true }; }
-      if (stepIndex === 2 && this.step === 2) { return { active: true }; }
-      if (stepIndex === 3 && this.step === 3) { return { active: true }; }
+      if (stepIndex === this.step) {
+        return { active: true };
+      }
       return {};
     },
 
     onNextStep: function () {
       if (this.step < 3) {
-        this.goToStep(this.step + 1);
+        this.gotoStep(this.step + 1);
       }
     },
 
@@ -193,7 +215,6 @@ const app = new Vue({
         exam.id = examId;
       }
       this.curExam = new Exam(exam);
-      this.formExam = new Exam(exam);
       this.saveSession();
     },
 
@@ -321,7 +342,7 @@ const app = new Vue({
       toast.className = 'toast toast-' + type;
       toast.innerHTML =
         '<span class="toast-icon">' + (icons[type] || icons.info) + '</span>' +
-        '<span>' + this.escapeHtml(message) + '</span>' +
+        '<span>' + message + '</span>' +
         '<button class="toast-close" onclick="this.closest(\'.toast\').classList.add(\'toast-leaving\'); setTimeout(function(e){e.remove()}, 300, this.closest(\'.toast\'))">' +
         '<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>' +
         '</button>';
@@ -651,11 +672,12 @@ const app = new Vue({
         });
       }
 
-      this.step = 2;
+      console.log("max step: ", this.maxStep());
+      this.gotoStep(this.maxStep());
     },
 
-    isValidInfos: function (exam) {
-      return exam.isValid();
+    onFormDataChanged() {
+      console.log(this.canGotoStep(3));
     },
 
     onUploadClicked: function () {

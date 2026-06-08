@@ -53,7 +53,7 @@ $csrf_token = $_SESSION['csrf_token'];
 
     <!-- Stepper -->
     <div class="stepper" aria-label="Progression">
-      <div v-bind:class="stepperClass(0)" class="stepper-step" v-on:click="goToStep(0)">
+      <div v-bind:class="stepperClass(0)" class="stepper-step" v-on:click="gotoStep(0)">
         <div class="stepper-circle">
           <span class="stepper-number">1</span>
           <svg class="stepper-icon" viewBox="0 0 20 20" fill="currentColor">
@@ -65,7 +65,7 @@ $csrf_token = $_SESSION['csrf_token'];
         <span class="stepper-label">Type</span>
       </div>
       <div class="stepper-connector" v-bind:class="{ done: step >= 1 }"></div>
-      <div v-bind:class="stepperClass(1)" class="stepper-step" v-on:click="goToStep(1)">
+      <div v-bind:class="stepperClass(1)" class="stepper-step" v-on:click="gotoStep(1)">
         <div class="stepper-circle">
           <span class="stepper-number">2</span>
           <svg class="stepper-icon" viewBox="0 0 20 20" fill="currentColor">
@@ -77,7 +77,7 @@ $csrf_token = $_SESSION['csrf_token'];
         <span class="stepper-label">Fichier</span>
       </div>
       <div class="stepper-connector" v-bind:class="{ done: step >= 2 }"></div>
-      <div v-bind:class="stepperClass(2)" class="stepper-step" v-on:click="goToStep(2)">
+      <div v-bind:class="stepperClass(2)" class="stepper-step" v-on:click="gotoStep(2)">
         <div class="stepper-circle">
           <span class="stepper-number">3</span>
           <svg class="stepper-icon" viewBox="0 0 20 20" fill="currentColor">
@@ -89,7 +89,7 @@ $csrf_token = $_SESSION['csrf_token'];
         <span class="stepper-label">Infos</span>
       </div>
       <div class="stepper-connector" v-bind:class="{ done: step >= 3 }"></div>
-      <div v-bind:class="stepperClass(3)" class="stepper-step" v-on:click="goToStep(3)">
+      <div v-bind:class="stepperClass(3)" class="stepper-step" v-on:click="gotoStep(3)">
         <div class="stepper-circle">
           <span class="stepper-number">4</span>
           <svg class="stepper-icon" viewBox="0 0 20 20" fill="currentColor">
@@ -137,6 +137,14 @@ $csrf_token = $_SESSION['csrf_token'];
                 </label>
               </div>
             </div>
+
+            <div class="mt-3 d-flex justify-content-between">
+              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
+                ← Retour
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" v-on:click="onNextStep()"
+                v-if="canGotoStep(1)">→</button>
+            </div>
           </fieldset>
         </div>
       </transition>
@@ -167,7 +175,7 @@ $csrf_token = $_SESSION['csrf_token'];
                 ← Retour
               </button>
               <button type="button" class="btn btn-primary btn-sm" v-on:click="onNextStep()"
-                v-if="selectedFilesInfos.length > 0">→</button>
+                v-if="canGotoStep(2)">→</button>
             </div>
 
             <div class="files-info my-3" v-if="selectedFilesInfos.length > 0">
@@ -214,8 +222,8 @@ $csrf_token = $_SESSION['csrf_token'];
               <!-- Enseignant -->
               <div class="my-2">
                 <label for="enseignant" class="form-label">Enseignant</label>
-                <input id="enseignant" type="text" class="form-control" v-model="formExam.teacher"
-                  placeholder="Ex: M. Mohamed Anis MANI" required list="enseignants">
+                <input id="enseignant" type="text" class="form-control" v-model="curExam.teacher"
+                  v-on:change="onFormDataChanged()" placeholder="Ex: M. Mohamed Anis MANI" required list="enseignants">
                 <datalist id="enseignants">
                   <option v-for="enseignant in teachers" v-bind:value="enseignant">{{ enseignant }}</option>
                 </datalist>
@@ -224,8 +232,8 @@ $csrf_token = $_SESSION['csrf_token'];
               <!-- Classe -->
               <div class="my-2">
                 <label for="classe-autre" class="form-label">Classe</label>
-                <input id="classe-autre" type="text" class="form-control" v-model="formExam.classes[0]"
-                  placeholder="Ex: 1INFO2" required list="classes">
+                <input id="classe-autre" type="text" class="form-control" v-model="curExam.classes[0]"
+                  v-on:change="onFormDataChanged()" placeholder="Ex: 1INFO2" required list="classes">
                 <datalist id="classes">
                   <option v-for="classe in classes" v-bind:value="classe">{{ classe }}</option>
                 </datalist>
@@ -234,8 +242,8 @@ $csrf_token = $_SESSION['csrf_token'];
               <!-- Matière -->
               <div class="my-2">
                 <label for="matiere" class="form-label">Matière</label>
-                <input id="matiere" type="text" class="form-control" v-model="formExam.subject"
-                  placeholder="Ex: Informatique" required list="matieres">
+                <input id="matiere" type="text" class="form-control" v-model="curExam.subject"
+                  v-on:change="onFormDataChanged()" placeholder="Ex: Informatique" required list="matieres">
                 <datalist id="matieres">
                   <option v-for="matiere in subjects" v-bind:value="matiere">{{ matiere }}</option>
                 </datalist>
@@ -244,8 +252,8 @@ $csrf_token = $_SESSION['csrf_token'];
               <!-- Epreuve -->
               <div class="my-2">
                 <label for="epreuve" class="form-label">Epreuve</label>
-                <input id="epreuve" type="text" class="form-control" v-model="formExam.name"
-                  placeholder="Ex: Informatique" required list="epreuves">
+                <input id="epreuve" type="text" class="form-control" v-model="curExam.name"
+                  v-on:change="onFormDataChanged()" placeholder="Ex: Informatique" required list="epreuves">
                 <datalist id="epreuves">
                   <option v-for="epreuve in sessions" v-bind:value="epreuve">{{ epreuve }}</option>
                 </datalist>
@@ -255,8 +263,8 @@ $csrf_token = $_SESSION['csrf_token'];
             <!-- Poste -->
             <div class="my-2">
               <label for="poste" class="form-label">Poste</label>
-              <input type="text" name="poste" id="poste" class="form-select" v-model="formExam.poste"
-                placeholder="Ex: Poste 1" required list="postes">
+              <input type="text" name="poste" id="poste" class="form-select" v-model="curExam.poste"
+                v-on:change="onFormDataChanged()" placeholder="Ex: Poste 1" required list="postes">
               <datalist id="postes">
                 <option v-for="numPoste in 20" v-bind:value="'Poste ' + numPoste">Poste {{numPoste}}</option>
               </datalist>
@@ -267,7 +275,7 @@ $csrf_token = $_SESSION['csrf_token'];
                 ← Retour
               </button>
               <button type="button" class="btn btn-primary btn-sm" v-on:click="onNextStep()"
-                v-if="isValidInfos(formExam)">→</button>
+                v-if="canGotoStep(3)">→</button>
             </div>
           </fieldset>
         </div>
@@ -307,7 +315,6 @@ $csrf_token = $_SESSION['csrf_token'];
           </fieldset>
         </div>
       </transition>
-
     </form>
   </main>
   <script src="assets/js/vue.min.js"></script>

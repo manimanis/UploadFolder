@@ -444,6 +444,8 @@ h1 {
 }
 
 .toast {
+  width: 500px;
+  max-width: 500px;
   pointer-events: auto;
   display: flex;
   align-items: center;
@@ -454,7 +456,6 @@ h1 {
   font-weight: 500;
   font-size: 0.9rem;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  max-width: 400px;
   animation: toastSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   position: relative;
   overflow: hidden;
