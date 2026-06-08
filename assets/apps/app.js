@@ -1,13 +1,40 @@
+class Exam {
+  constructor(examData = {}) {
+    this.id = examData.id || '';
+    this.name = examData.name || '';
+    this.date = examData.date || '';
+    this.time_start = examData.time_start || '';
+    this.time_end = examData.time_end || '';
+    this.subject = examData.subject || '';
+    this.teacher = examData.teacher || '';
+    this.classes = examData.classes || [];
+    this.poste = examData.poste || '';
+  }
+
+  isValid() {
+    return !!(this.name &&
+      this.date &&
+      this.time_start &&
+      this.time_end &&
+      this.subject &&
+      this.teacher &&
+      this.classes &&
+      this.poste);
+  }
+}
+
 const app = new Vue({
   el: '#app',
   data: {
     step: 0,
     typeData: '',
     elem: null,
-    classe: '',
-    poste: 'Poste 1',
-    nomsClasses: [],
-    classes: {},
+
+    selectedExamId: "",
+    curExam: new Exam(),
+    formExam: new Exam(),
+
+
     uploading: false,
     selectedFilesInfos: [],
     code: '',
@@ -15,11 +42,20 @@ const app = new Vue({
     fichier: null,
     csrfToken: '',
     classeCustom: '',
+    // Exam-related fields
+    exams: [],
+    classes: [],
+    teachers: [],
+    subjects: [],
+    sessions: [],
+    todayExams: [],
     // File size limit: 100 MB for the uncompressed data
-    maxSizeBytes: 100 * 1024 * 1024
+    maxSizeBytes: 100 * 1024 * 1024,
+    // ---- Session Persistence (localStorage) ----
+    STORAGE_KEY: 'upload_session'
   },
   mounted: function () {
-    this.fetchClasses();
+    this.fetchExams();
     this.restoreSession();
     this.loadCsrfToken();
     // Attach drag & drop listeners on the whole document (outside Vue's #app scope)
@@ -51,22 +87,42 @@ const app = new Vue({
     },
     effectiveClasse: function () {
       return this.classe === 'Autre' ? this.classeCustom : this.classe;
+    },
+    todayKey: function () {
+      var d = new Date();
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
     }
   },
   methods: {
     // ---- Navigation ----
     goToStep: function (targetStep) {
-      // Only allow going back to completed steps (step > targetStep)
-      // and never allow going forward via stepper click
-      if (this.step > targetStep) {
-        this.feedback = '';
-        this.step = targetStep;
+      let feedback = '';
+      let nextStep = this.step;
+      if (targetStep == 0) {
+        nextStep = 0;
+      } else if (targetStep === 1) {
+        if (this.typeData === '') {
+          feedback = 'Veuillez sélectionner un type de données';
+        } else {
+          nextStep = targetStep;
+        }
+      } else if (this.typeData !== '' && targetStep === 2) {
+        this.formExam = new Exam(this.curExam);
+        nextStep = 2;
+      } else if (this.typeData !== '' && this.isValidInfos(this.formExam) && targetStep === 3) {
+        this.curExam = this.formExam;
+        this.saveSession();
+        nextStep = 3;
       }
+      this.feedback = feedback;
+      this.step = nextStep;
     },
 
     // ---- Stepper Classes ----
     stepperClass: function (stepIndex) {
-      // Step map: 0=Type, 1=Fichier, 3=Infos, 4=Envoi
       if (this.step > stepIndex) {
         return { completed: true };
       }
@@ -75,6 +131,12 @@ const app = new Vue({
       if (stepIndex === 2 && this.step === 2) { return { active: true }; }
       if (stepIndex === 3 && this.step === 3) { return { active: true }; }
       return {};
+    },
+
+    onNextStep: function () {
+      if (this.step < 3) {
+        this.goToStep(this.step + 1);
+      }
     },
 
     // ---- CSRF Token ----
@@ -86,36 +148,58 @@ const app = new Vue({
     },
 
     // ---- Data Fetching ----
-    fetchClasses: function () {
-      return fetch('classes.json')
+    fetchExams: function () {
+      return fetch('exams.json')
         .then(function (response) {
           if (!response.ok) {
-            throw new Error('Impossible de charger les classes.');
+            throw new Error('Impossible de charger les examens.');
           }
           return response.json();
         })
-        .then(function (data) {
-          this.classes = data;
-          this.nomsClasses = Object.keys(data);
-          this.nomsClasses.forEach(function (nomClasse) {
-            this.classes[nomClasse].sort();
-          }, this);
-        }.bind(this))
-        .catch(function (err) {
-          this.showToast('Erreur lors du chargement des classes : ' + err.message, 'error');
-        }.bind(this));
+        .then((data) => {
+          this.exams = data.exams?.map(exam => new Exam({
+            ...exam,
+            poste: this.curExam.poste || ''
+          })) || [];
+          this.classes = data.classes || [];
+          this.teachers = data.enseignants || [];
+          this.subjects = data.matieres || [];
+          this.sessions = data.noms || [];
+
+          this.exams.sort((a, b) => {
+            return new Date(a.date + "T" + a.time_start) - new Date(b.date + "T" + b.time_start);
+          });
+          this.classes.sort();
+          this.teachers.sort();
+          this.subjects.sort();
+          this.sessions.sort();
+
+          var self = this;
+          var today = self.todayKey;
+          self.todayExams = this.exams.filter((exam) => {
+            return exam.date === today;
+          });
+        })
+        .catch((err) => {
+          this.showToast('Erreur lors du chargement des examens : ' + err.message, 'error');
+        });
     },
 
-    // ---- Session Persistence (localStorage) ----
-    STORAGE_KEY: 'upload_session',
+    selectExam: function (examId) {
+      this.selectedExamId = examId;
+      let exam = this.exams.find(ex => ex.id === examId);
+      if (!exam) {
+        exam = this.curExam;
+        exam.id = examId;
+      }
+      this.curExam = new Exam(exam);
+      this.formExam = new Exam(exam);
+      this.saveSession();
+    },
 
     saveSession: function () {
       try {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify({
-          classe: this.classe,
-          poste: this.poste,
-          classCustom: this.classCustom
-        }));
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.curExam));
       } catch (e) {
         // localStorage may be unavailable
       }
@@ -123,25 +207,35 @@ const app = new Vue({
 
     restoreSession: function () {
       try {
-        let saved = localStorage.getItem(this.STORAGE_KEY) || '{}';
-        let data = JSON.parse(saved);
-        if (data.classe) this.classe = data.classe;
-        if (data.poste) this.poste = data.poste;
-        if (data.classCustom) this.classCustom = data.classCustom;
+        var saved = localStorage.getItem(this.STORAGE_KEY) || '{}';
+        this.curExam = new Exam(JSON.parse(saved));
       } catch (e) {
         // ignore
       }
     },
 
     clearSession: function () {
-      try { localStorage.removeItem(this.STORAGE_KEY); } catch (e) { }
+      try {
+        localStorage.removeItem(this.STORAGE_KEY);
+      } catch (e) { }
     },
 
     // ---- ZIP Generation ----
     generateReadme: function () {
-      return this.poste + '\n' +
-        this.effectiveClasse + '\n' +
-        new Date().toLocaleString('fr-fr');
+      var lines = [];
+      lines.push('Poste : ' + this.curExam.poste);
+      lines.push('Classe : ' + this.curExam.classes.join(", "));
+      if (this.curExam.name) {
+        lines.push('Examen : ' + this.curExam.name);
+      }
+      if (this.curExam.subject) {
+        lines.push('Matière : ' + this.curExam.subject);
+      }
+      if (this.curExam.teacher) {
+        lines.push('Enseignant : ' + this.curExam.teacher);
+      }
+      lines.push('Date : ' + new Date().toLocaleString('fr-fr'));
+      return lines.join('\n');
     },
 
     zipFiles: function (filesField) {
@@ -328,6 +422,9 @@ const app = new Vue({
             document.querySelector('#form').reset();
             self.selectedFilesInfos = [];
             self.elem = null;
+            self.selectedExam = null;
+            self.matiere = '';
+            self.enseignant = '';
             self.step = 0;
           }
         })
@@ -483,8 +580,9 @@ const app = new Vue({
             self.elem = { files: fileList };
             self.files = fileList;
 
+            console.log("isValidInfos: ", self.isValidInfos(self.curExam));
             // Jump to INFO step (step 2)
-            self.step = 2;
+            self.step = 2 + self.isValidInfos(self.curExam);
           }
         });
       });
@@ -556,40 +654,8 @@ const app = new Vue({
       this.step = 2;
     },
 
-    onClasseChanged: function () {
-      if (this.classe !== '') {
-        this.saveSession();
-      }
-      if (this.effectiveClasse && this.poste) {
-        this.step = 3;
-      }
-    },
-
-    onPosteChanged: function () {
-      if (this.poste !== '') {
-        this.saveSession();
-      }
-      if (this.effectiveClasse && this.poste) {
-        this.step = 3;
-      }
-    },
-
-    onNextStep: function () {
-      if (this.isValidInformations(this.step)) {
-        if (this.step === 1) {
-          this.step = 2;
-        } else if (this.step === 2) {
-          this.step = 3;
-        }
-      }
-    },
-
-    isValidInformations: function (step) {
-      if (step === 3) {
-        let effectiveClass = this.classe === 'Autre' ? this.classeCustom : this.classe;
-        return effectiveClass !== '' && this.poste !== '';
-      }
-      return true;
+    isValidInfos: function (exam) {
+      return exam.isValid();
     },
 
     onUploadClicked: function () {

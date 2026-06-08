@@ -1,7 +1,8 @@
 {
     "noms": [
         "Devoir de contrôle 1",
-        "Evaluation Pratique n°1"
+        "Evaluation Pratique n°1",
+        "Evaluation Pratique n°2"
     ],
     "matieres": [
         "Informatique",
@@ -30,7 +31,7 @@
             "teacher": "M. Mohamed Anis MANI",
             "classes": [
                 "2INFO1",
-                " 3TECH2"
+                "3TECH2"
             ]
         },
         {
@@ -43,7 +44,7 @@
             "teacher": "M. Slim Dorgham",
             "classes": [
                 "3INFO1",
-                " 3INFO2"
+                "3INFO2"
             ]
         },
         {
@@ -68,6 +69,18 @@
             "teacher": "M. Mohamed Anis MANI",
             "classes": [
                 "2INFO1"
+            ]
+        },
+        {
+            "id": "5806ba29ad2725770332b17861851dd6",
+            "name": "Evaluation Pratique n°2",
+            "date": "2026-06-08",
+            "time_start": "08:00",
+            "time_end": "12:00",
+            "subject": "Informatique",
+            "teacher": "M. Mohamed Anis MANI",
+            "classes": [
+                "3TECH2"
             ]
         }
     ]
