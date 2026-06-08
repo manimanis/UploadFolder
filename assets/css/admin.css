@@ -348,6 +348,28 @@ body {
   box-shadow: var(--admin-shadow-lg);
 }
 
+/* Exam stats rows (#28) */
+.exam-stat-row {
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: var(--admin-hover);
+  transition: background 0.2s ease;
+}
+
+.exam-stat-row:hover {
+  background: var(--admin-bg-alt);
+}
+
+.duplicate-row {
+  padding: 12px;
+  border-left: 4px solid var(--admin-danger);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: rgba(220, 53, 69, 0.05);
+}
+
 /* Responsive */
 @media (max-width: 576px) {
   .admin-tabs {

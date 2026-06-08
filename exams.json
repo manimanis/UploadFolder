@@ -82,6 +82,18 @@
             "classes": [
                 "3TECH2"
             ]
+        },
+        {
+            "id": "feaa0af24d65a4dff2b4bc636aa8dfb6",
+            "name": "Devoir de contrôle 1",
+            "date": "2026-06-08",
+            "time_start": "14:00",
+            "time_end": "18:00",
+            "subject": "STI",
+            "teacher": "M. Mohamed Anis MANI",
+            "classes": [
+                "3INFO2"
+            ]
         }
     ]
 }

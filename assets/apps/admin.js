@@ -26,6 +26,9 @@ new Vue({
     },
     dates: {},
     logLines: [],
+    examStats: [],
+    duplicateHashes: [],
+    showDuplicates: false,
     toast: { show: false, message: '', type: 'success' },
     meta: {
       noms: [],
@@ -180,6 +183,7 @@ new Vue({
     activeTab: function (tab) {
       this.saveConfig();
       if (tab === 'exams') this.initExamsTab();
+      if (tab === 'examstats') this.loadExamStats();
       if (tab === 'log') this.loadLog();
     }
   },
@@ -560,6 +564,24 @@ new Vue({
 
     initExamsTab: function () {
       this.loadExams();
+    },
+
+    // ---- #28 Statistiques par examen (et #27 détection de doublons) ----
+    loadExamStats: function () {
+      let self = this;
+      self.api('exam_stats').then(function (data) {
+        if (data.error) {
+          self.showToast(data.error, 'error');
+          return;
+        }
+        self.examStats = data.stats_per_exam || [];
+        self.duplicateHashes = data.duplicate_hashes || [];
+      });
+    },
+
+    examCompletionPercent: function (exam) {
+      if (!exam.expected_uploads || exam.expected_uploads === 0) return 0;
+      return Math.min(100, Math.round((exam.actual_uploads / exam.expected_uploads) * 100));
     }
   }
 });

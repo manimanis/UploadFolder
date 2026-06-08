@@ -14,29 +14,193 @@
   --gray-500: #adb5bd;
   --gray-700: #495057;
   --gray-900: #212529;
+  --card-bg: #ffffff;
+  --body-bg-start: #f0f7ff;
+  --body-bg-mid: #e8f4fd;
+  --body-bg-end: #f5faff;
   --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
   --card-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.12);
   --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --border-radius: 12px;
+  --input-bg: #ffffff;
+  --input-color: #212529;
+  --text-color: #212529;
+  --muted-color: #6c757d;
+}
+
+[data-theme="dark"] {
+  --primary: #4a9eff;
+  --primary-dark: #0870b9;
+  --primary-light: #1e3a5f;
+  --success: #34ce57;
+  --danger: #f56575;
+  --gray-100: #1e2a3a;
+  --gray-200: #2d3a4a;
+  --gray-300: #3a4a5a;
+  --gray-500: #adb5bd;
+  --gray-700: #d0d6dc;
+  --gray-900: #f0f0f0;
+  --card-bg: #1e2a3a;
+  --body-bg-start: #1a1a2e;
+  --body-bg-mid: #16213e;
+  --body-bg-end: #1a1a2e;
+  --input-bg: #2d3a4a;
+  --input-color: #f0f0f0;
+  --text-color: #f0f0f0;
+  --muted-color: #aab2bd;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 /* ============================================================
    BASE LAYOUT
    ============================================================ */
 body {
-  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f5faff 100%);
+  background: linear-gradient(135deg, var(--body-bg-start) 0%, var(--body-bg-mid) 50%, var(--body-bg-end) 100%);
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   counter-reset: figures;
   padding: 20px 0;
+  color: var(--text-color);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* ============================================================
    MAIN CARD (form container)
    ============================================================ */
 main {
-  background: #ffffff;
+  background: var(--card-bg);
   border: none !important;
+  color: var(--text-color);
+  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Step card adapts to dark mode */
+.step-card {
+  background: var(--gray-100);
+  color: var(--text-color);
+}
+
+.step-card legend {
+  color: var(--gray-900);
+}
+
+/* Form inputs adapt to dark mode */
+.form-control,
+.form-select,
+.radio-card,
+.file-info {
+  background: var(--input-bg);
+  color: var(--input-color);
+  border-color: var(--gray-200);
+}
+
+.form-control::placeholder {
+  color: var(--muted-color);
+}
+
+.file-info {
+  background: var(--input-bg);
+}
+
+.file-info .file-name {
+  color: var(--gray-900);
+}
+
+.file-info .file-size {
+  color: var(--muted-color);
+}
+
+/* Dark mode adjustments for radio cards */
+[data-theme="dark"] .radio-card {
+  background: var(--input-bg);
+  color: var(--gray-700);
+}
+
+[data-theme="dark"] .radio-card:hover {
+  background: var(--primary-light);
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] .radio-card:has(input[type="radio"]:checked) {
+  background: var(--primary-light);
+  color: var(--gray-900);
+}
+
+/* Stepper */
+[data-theme="dark"] .stepper-circle {
+  background: var(--input-bg);
+  color: var(--gray-500);
+}
+
+[data-theme="dark"] .stepper-label {
+  color: var(--gray-500);
+}
+
+/* Top toolbar */
+.app-topbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+[data-theme="dark"] .app-topbar .btn-outline-secondary {
+  color: var(--gray-700);
+  border-color: var(--gray-300);
+}
+
+[data-theme="dark"] .app-topbar .btn-outline-secondary:hover {
+  background: var(--gray-200);
+  color: var(--gray-900);
+}
+
+/* Page de garde (landing) */
+.landing-exams {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.landing-exam {
+  background: var(--input-bg);
+  border: 2px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  color: var(--input-color);
+}
+
+.landing-exam:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(8, 112, 185, 0.15);
+}
+
+.landing-exam .le-name {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.landing-exam .le-meta {
+  color: var(--muted-color);
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.landing-empty {
+  color: var(--muted-color);
+  text-align: center;
+  font-style: italic;
+  padding: 12px;
+}
+
+main {
   border-radius: var(--border-radius) !important;
   box-shadow: var(--card-shadow) !important;
   padding: 40px 35px !important;

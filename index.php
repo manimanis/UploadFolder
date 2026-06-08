@@ -47,8 +47,33 @@ $csrf_token = $_SESSION['csrf_token'];
   <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <main id="app" class="container my-5">
+    <div class="app-topbar">
+      <button type="button" class="btn btn-sm btn-outline-secondary" v-on:click="toggleDarkMode()"
+        v-bind:title="darkMode ? 'Mode clair' : 'Mode sombre'">
+        {{ darkMode ? '☀️' : '🌙' }}
+      </button>
+      <a href="admin.php" class="btn btn-sm btn-outline-secondary" title="Administration">⚙️</a>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h1 style="margin-bottom: 0;">📤 Envoi de Travaux</h1>
+    </div>
+
+    <!-- Page de garde (#47) : Examens à venir -->
+    <div v-if="step === 0 && upcomingExams.length > 0" class="step-card mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong>📅 Examens à venir</strong>
+        <small class="text-muted">Cliquez pour pré-remplir</small>
+      </div>
+      <div class="landing-exams">
+        <div v-for="exam in upcomingExams" v-bind:key="exam.id" class="landing-exam"
+          v-on:click="selectUpcomingExam(exam)">
+          <div class="le-name">{{ exam.name }} — {{ exam.subject }}</div>
+          <div class="le-meta">
+            {{ exam.classes.join(', ') }} • {{ exam.date }} • {{ exam.time_start }}–{{ exam.time_end }} • {{ exam.teacher }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Stepper -->
@@ -105,7 +130,7 @@ $csrf_token = $_SESSION['csrf_token'];
     <form id="form" method="post" enctype="multipart/form-data" novalidate>
       <!-- STEP 0: Type Selection -->
       <transition name="step" mode="out-in">
-        <div v-show="step === 0" class="step-card">
+        <div v-if="step === 0" class="step-card">
           <fieldset>
             <legend><span class="card-icon">📁</span>Je veux envoyer :</legend>
             <div class="row">
@@ -206,8 +231,8 @@ $csrf_token = $_SESSION['csrf_token'];
                 <button type="button" class="btn btn-sm"
                   v-bind:class="curExam.id === exam.id ? 'btn-primary' : 'btn-outline-primary'"
                   v-for="exam in todayExams" v-bind:key="exam.id" v-on:click="selectExam(exam.id)">
-                  <span class="fs-4 fw-bold">{{ exam.classes.join(", ") }}</span><br>
-                  <span class="fs-3">{{ exam.name }}</span><br>
+                  <span class="fs-5 fw-bold">{{ exam.classes.join(", ") }}</span><br>
+                  <span class="fs-4">{{ exam.name }}</span><br>
                   <span class="fs-6 fw-light">{{ exam.teacher }}</span>
                 </button>
                 <button type="button" class="btn btn-sm"

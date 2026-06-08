@@ -30,6 +30,7 @@ const app = new Vue({
     step: 0,
     typeData: '',
     elem: null,
+    selectedExamId: '',
 
     curExam: new Exam(),
 
@@ -47,20 +48,29 @@ const app = new Vue({
     subjects: [],
     sessions: [],
     todayExams: [],
+    upcomingExams: [],
     // File size limit: 100 MB for the uncompressed data
     maxSizeBytes: 100 * 1024 * 1024,
+    // ---- Anti-plagiarism (SHA-256) ----
+    fileHashes: [],
     // ---- Session Persistence (localStorage) ----
-    STORAGE_KEY: 'upload_session'
+    STORAGE_KEY: 'upload_session',
+    // ---- Dark mode ----
+    darkMode: false
   },
   mounted: function () {
     this.fetchExams();
     this.restoreSession();
     this.loadCsrfToken();
+    this.loadDarkMode();
     // Attach drag & drop listeners on the whole document (outside Vue's #app scope)
     this._onDragOver = this.onDragOver.bind(this);
     this._onDrop = this.onDrop.bind(this);
     document.addEventListener('dragover', this._onDragOver);
     document.addEventListener('drop', this._onDrop);
+    // Avertissement avant fermeture pendant un upload (#14)
+    this._onBeforeUnload = this.onBeforeUnload.bind(this);
+    window.addEventListener('beforeunload', this._onBeforeUnload);
   },
   beforeDestroy: function () {
     // Clean up listeners to avoid memory leaks
@@ -69,6 +79,7 @@ const app = new Vue({
     if (this._onDragLeave) {
       document.removeEventListener('dragleave', this._onDragLeave);
     }
+    window.removeEventListener('beforeunload', this._onBeforeUnload);
   },
   computed: {
     selectedFilesInfosLimited: function () {
@@ -200,6 +211,13 @@ const app = new Vue({
           self.todayExams = this.exams.filter((exam) => {
             return exam.date === today;
           });
+          // Examens à venir (7 prochains jours, hors aujourd'hui)
+          var nowMs = Date.now();
+          var horizon = nowMs + 7 * 24 * 60 * 60 * 1000;
+          self.upcomingExams = this.exams.filter((exam) => {
+            var ts = new Date(exam.date + 'T' + exam.time_start).getTime();
+            return ts > nowMs && ts <= horizon;
+          }).slice(0, 6);
         })
         .catch((err) => {
           this.showToast('Erreur lors du chargement des examens : ' + err.message, 'error');
@@ -412,6 +430,9 @@ const app = new Vue({
       self.uploading = true;
       self.showLoading('Compression et envoi en cours...');
 
+      // #27 Anti-plagiat : calcule les hashs SHA-256 avant l'envoi
+      let hashPromise = self.computeAllFileHashes();
+
       let zipPromise = self.prepareZipFile();
       if (zipPromise === null) {
         self.uploading = false;
@@ -419,13 +440,18 @@ const app = new Vue({
         return;
       }
 
-      zipPromise
-        .then(function (content) {
+      Promise.all([zipPromise, hashPromise])
+        .then(function (results) {
+          const content = results[0];
           formData.append('files', content, 'upload.zip');
-          formData.append('classe', self.effectiveClasse);
-          formData.append('poste', self.poste);
+          formData.append('classe', self.curExam.classes[0]);
+          formData.append('poste', self.curExam.poste);
           formData.append('upload', 'upload');
           formData.append('csrf_token', self.csrfToken);
+          // Ajoute les hashs SHA-256 dans un champ JSON
+          if (self.fileHashes && self.fileHashes.length > 0) {
+            formData.append('hashes', JSON.stringify(self.fileHashes));
+          }
 
           return fetch(url, {
             method: 'POST',
@@ -442,6 +468,7 @@ const app = new Vue({
             document.querySelector('#form').reset();
             self.selectedFilesInfos = [];
             self.elem = null;
+            self.fileHashes = [];
             self.selectedExam = null;
             self.matiere = '';
             self.enseignant = '';
@@ -683,5 +710,103 @@ const app = new Vue({
       this.sendZipFile();
     },
 
+    // ---- #14 Avertissement avant fermeture onglet pendant upload ----
+    onBeforeUnload: function (e) {
+      if (this.uploading) {
+        e.preventDefault();
+        e.returnValue = 'Un envoi est en cours. Quitter cette page interrompra l\'envoi.';
+        return e.returnValue;
+      }
+      return undefined;
+    },
+
+    // ---- #27 Anti-plagiat : calcul du hash SHA-256 d'un fichier ----
+    computeFileHash: function (file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const buffer = e.target.result;
+          crypto.subtle.digest('SHA-256', buffer).then(function (hashBuffer) {
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(function (b) {
+              return b.toString(16).padStart(2, '0');
+            }).join('');
+            resolve(hashHex);
+          }).catch(reject);
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    },
+
+    /**
+     * Calcule le SHA-256 de tous les fichiers sélectionnés et le stocke
+     * pour identification / détection de doublons côté admin.
+     */
+    computeAllFileHashes: function () {
+      const self = this;
+      self.fileHashes = [];
+      if (!self.elem || !self.elem.files || self.elem.files.length === 0) {
+        return Promise.resolve();
+      }
+      const promises = [];
+      for (let i = 0; i < self.elem.files.length; i++) {
+        const file = self.elem.files[i];
+        promises.push(
+          self.computeFileHash(file).then(function (hash) {
+            self.fileHashes.push({
+              name: file.webkitRelativePath || file.name,
+              size: file.size,
+              hash: hash
+            });
+          }).catch(function () {
+            // Ignorer les fichiers qui ne peuvent pas être hashés
+          })
+        );
+      }
+      return Promise.all(promises);
+    },
+
+    /**
+     * Construit la ligne d'empreintes (anti-plagiat) à insérer dans le readme.txt
+     */
+    formatHashesForReadme: function () {
+      if (!this.fileHashes || this.fileHashes.length === 0) return '';
+      const lines = ['Empreintes SHA-256 (anti-plagiat) :'];
+      this.fileHashes.forEach(function (entry) {
+        lines.push('  ' + entry.hash.substring(0, 16) + '...  ' + entry.name + ' (' + entry.size + ' o)');
+      });
+      return lines.join('\n');
+    },
+
+    // ---- #45 Thème clair/sombre ----
+    loadDarkMode: function () {
+      try {
+        this.darkMode = localStorage.getItem('upload_darkMode') === 'true';
+        if (this.darkMode) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (e) { /* ignore */ }
+    },
+
+    toggleDarkMode: function () {
+      this.darkMode = !this.darkMode;
+      try {
+        localStorage.setItem('upload_darkMode', this.darkMode ? 'true' : 'false');
+      } catch (e) { /* ignore */ }
+      if (this.darkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    },
+
+    // ---- #47 Page de garde publique : examens à venir ----
+    selectUpcomingExam: function (exam) {
+      this.selectedExamId = exam.id;
+      this.curExam = new Exam(exam);
+      this.saveSession();
+      this.step = 0;
+    }
   }
 });

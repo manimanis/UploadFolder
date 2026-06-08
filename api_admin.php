@@ -4,10 +4,19 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 // --- Configuration ---
-define('ADMIN_PASSWORD', 'admin123');
+// Mot de passe stocké en hash bcrypt dans data/admin.hash
+// Générer le hash avec : php -r "echo password_hash('admin123', PASSWORD_BCRYPT);"
 define('UPLOAD_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'upload_folder');
 define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'upload.log');
 define('EXAMS_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'exams.json');
+define('ADMIN_HASH_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'admin.hash');
+define('LOGIN_LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'login_attempts.log');
+
+// Sécurité : expiration de session après 30 min d'inactivité
+define('ADMIN_SESSION_TTL', 1800);
+// Limite anti-brute-force : 5 tentatives, blocage 15 min
+define('MAX_LOGIN_ATTEMPTS', 5);
+define('LOGIN_LOCKOUT_SECONDS', 900);
 
 // --- Helpers ---
 function json_response(array $data): void
@@ -16,11 +25,84 @@ function json_response(array $data): void
   exit;
 }
 
+/**
+ * Récupère le hash bcrypt du mot de passe admin.
+ * Si le fichier n'existe pas, crée un hash par défaut ("admin123") au premier lancement.
+ */
+function get_admin_hash(): string
+{
+  if (file_exists(ADMIN_HASH_FILE)) {
+    return trim((string) file_get_contents(ADMIN_HASH_FILE));
+  }
+  // Auto-génération du hash par défaut au premier lancement
+  if (!is_dir(dirname(ADMIN_HASH_FILE))) {
+    @mkdir(dirname(ADMIN_HASH_FILE), 0755, true);
+  }
+  $default = password_hash('admin123', PASSWORD_BCRYPT);
+  @file_put_contents(ADMIN_HASH_FILE, $default);
+  @chmod(ADMIN_HASH_FILE, 0640);
+  return $default;
+}
+
+/**
+ * Vérifie qu'une IP n'est pas actuellement bloquée suite à trop de tentatives.
+ */
+function is_ip_locked_out(string $ip): array
+{
+  if (!file_exists(LOGIN_LOG_FILE)) return [false, 0];
+  $lines = @file(LOGIN_LOG_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+  $window = time() - LOGIN_LOCKOUT_SECONDS;
+  $failures = 0;
+  $last_failure_ts = 0;
+  foreach ($lines as $line) {
+    $entry = @json_decode($line, true);
+    if (!is_array($entry) || ($entry['ip'] ?? '') !== $ip) continue;
+    if (($entry['ts'] ?? 0) < $window) continue;
+    if (($entry['success'] ?? false) === true) {
+      // Une réussite reset le compteur
+      $failures = 0;
+      $last_failure_ts = 0;
+    } else {
+      $failures++;
+      $last_failure_ts = max($last_failure_ts, (int) $entry['ts']);
+    }
+  }
+  if ($failures >= MAX_LOGIN_ATTEMPTS) {
+    $remaining = LOGIN_LOCKOUT_SECONDS - (time() - $last_failure_ts);
+    return [true, max(0, $remaining)];
+  }
+  return [false, 0];
+}
+
+/**
+ * Journalise une tentative de connexion (succès ou échec).
+ */
+function log_login_attempt(string $ip, bool $success): void
+{
+  if (!is_dir(dirname(LOGIN_LOG_FILE))) {
+    @mkdir(dirname(LOGIN_LOG_FILE), 0755, true);
+  }
+  $entry = json_encode([
+    'ip' => $ip,
+    'ts' => time(),
+    'success' => $success
+  ], JSON_UNESCAPED_UNICODE) . PHP_EOL;
+  @file_put_contents(LOGIN_LOG_FILE, $entry, FILE_APPEND | LOCK_EX);
+}
+
 function require_auth(): void
 {
   if (empty($_SESSION['admin_logged_in'])) {
     json_response(['error' => 'Non authentifié.']);
   }
+  // Vérification de l'expiration de session
+  if (isset($_SESSION['admin_last_activity']) &&
+      (time() - (int) $_SESSION['admin_last_activity']) > ADMIN_SESSION_TTL) {
+    unset($_SESSION['admin_logged_in'], $_SESSION['admin_last_activity']);
+    json_response(['error' => 'Session expirée. Veuillez vous reconnecter.']);
+  }
+  // Renouvelle le timestamp d'activité
+  $_SESSION['admin_last_activity'] = time();
 }
 
 function formatSize(int $bytes): string
@@ -81,6 +163,53 @@ function is_safe_path(string $path, string $base): bool
   $real = realpath($path);
   $realBase = realpath($base);
   return $real !== false && $realBase !== false && strpos($real, $realBase) === 0;
+}
+
+/**
+ * Écrit exams.json de manière atomique avec sauvegarde de sécurité.
+ * - Backup horodaté (exams.json.bak.YYYYMMDD_HHMMSS) avant chaque écriture
+ * - Écriture dans un fichier temporaire puis renommage atomique
+ * - Garde uniquement les 5 derniers backups pour éviter l'explosion disque
+ */
+function save_exams_safely(array $data): bool
+{
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
+  if ($json === false) return false;
+
+  // 1) Sauvegarde de l'ancien fichier s'il existe
+  if (file_exists(EXAMS_FILE)) {
+    $backup = EXAMS_FILE . '.bak.' . date('Ymd_His');
+    @copy(EXAMS_FILE, $backup);
+    // Nettoyage : on ne garde que les 5 backups les plus récents
+    $backups = glob(EXAMS_FILE . '.bak.*') ?: [];
+    if (count($backups) > 5) {
+      sort($backups);
+      $toDelete = count($backups) - 5;
+      for ($i = 0; $i < $toDelete; $i++) {
+        @unlink($backups[$i]);
+      }
+    }
+  }
+
+  // 2) Écriture atomique via un fichier temporaire
+  $tmp = EXAMS_FILE . '.tmp.' . bin2hex(random_bytes(4));
+  $fp = @fopen($tmp, 'wb');
+  if ($fp === false) return false;
+  if (!@flock($fp, LOCK_EX)) { fclose($fp); @unlink($tmp); return false; }
+  $written = @fwrite($fp, $json);
+  @fflush($fp);
+  @flock($fp, LOCK_UN);
+  fclose($fp);
+  if ($written === false || $written < strlen($json)) {
+    @unlink($tmp);
+    return false;
+  }
+  // 3) Renommage atomique
+  if (!@rename($tmp, EXAMS_FILE)) {
+    @unlink($tmp);
+    return false;
+  }
+  return true;
 }
 
 function collectData(): array
@@ -180,20 +309,43 @@ switch ($action) {
 
   case 'login':
     $password = $_POST['password'] ?? '';
-    if ($password === ADMIN_PASSWORD) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+    // Vérifier si l'IP est actuellement bloquée
+    [$locked, $remaining] = is_ip_locked_out($ip);
+    if ($locked) {
+      $mins = (int) ceil($remaining / 60);
+      log_login_attempt($ip, false);
+      json_response(['error' => "Trop de tentatives. Réessayez dans {$mins} minute(s)."]);
+    }
+
+    $hash = get_admin_hash();
+    if (password_verify($password, $hash)) {
+      // Régénère l'ID de session pour éviter la fixation de session
+      session_regenerate_id(true);
       $_SESSION['admin_logged_in'] = true;
+      $_SESSION['admin_last_activity'] = time();
+      log_login_attempt($ip, true);
       json_response(['success' => true]);
     } else {
+      log_login_attempt($ip, false);
       json_response(['error' => 'Mot de passe incorrect.']);
     }
     break;
 
   case 'logout':
-    unset($_SESSION['admin_logged_in']);
+    unset($_SESSION['admin_logged_in'], $_SESSION['admin_last_activity']);
     json_response(['success' => true]);
     break;
 
   case 'auth_status':
+    // Vérifie aussi l'expiration lors de l'appel auth_status
+    if (isset($_SESSION['admin_last_activity']) &&
+        (time() - (int) $_SESSION['admin_last_activity']) > ADMIN_SESSION_TTL) {
+      unset($_SESSION['admin_logged_in'], $_SESSION['admin_last_activity']);
+    } else {
+      $_SESSION['admin_last_activity'] = time();
+    }
     json_response(['authenticated' => !empty($_SESSION['admin_logged_in'])]);
     break;
 
@@ -467,7 +619,9 @@ switch ($action) {
       'exams' => $exams
     ];
 
-    file_put_contents(EXAMS_FILE, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    if (!save_exams_safely($data)) {
+      json_response(['error' => 'Impossible d\'enregistrer exams.json.']);
+    }
     json_response(['success' => true]);
     break;
 
@@ -523,8 +677,111 @@ switch ($action) {
       'exams' => $exams
     ];
 
-    file_put_contents(EXAMS_FILE, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    if (!save_exams_safely($data)) {
+      json_response(['error' => 'Impossible d\'enregistrer exams.json.']);
+    }
     json_response(['success' => true]);
+    break;
+
+  case 'exam_stats':
+    require_auth();
+    // #28 Statistiques par examen : croise exams.json avec les fichiers effectivement uploadés
+    $stats_per_exam = [];
+    if (file_exists(EXAMS_FILE)) {
+      $raw = file_get_contents(EXAMS_FILE);
+      $decoded = json_decode($raw, true);
+      $exams_list = $decoded['exams'] ?? [];
+      foreach ($exams_list as $ex) {
+        $key = $ex['date'] . '|' . ($ex['time_end'] ?? '');
+        if (!isset($stats_per_exam[$key])) {
+          $stats_per_exam[$key] = [
+            'id' => $ex['id'],
+            'name' => $ex['name'] ?? '',
+            'date' => $ex['date'] ?? '',
+            'time_start' => $ex['time_start'] ?? '',
+            'time_end' => $ex['time_end'] ?? '',
+            'subject' => $ex['subject'] ?? '',
+            'teacher' => $ex['teacher'] ?? '',
+            'classes' => $ex['classes'] ?? [],
+            'expected_uploads' => 0,
+            'actual_uploads' => 0,
+            'classes_with_uploads' => []
+          ];
+        }
+        // Compte le nombre d'élèves attendus (nb de classes * ~1 par classe)
+        $stats_per_exam[$key]['expected_uploads'] += count($ex['classes'] ?? []);
+      }
+    }
+    // Croiser avec les fichiers uploadés à la date correspondante
+    if (is_dir(UPLOAD_DIR)) {
+      $dateDirs = array_filter(glob(UPLOAD_DIR . '/*'), 'is_dir');
+      foreach ($dateDirs as $dateDir) {
+        $dateName = basename($dateDir);
+        $key = $dateName;
+        $classDirs = array_filter(glob($dateDir . '/*'), 'is_dir');
+        foreach ($classDirs as $classDir) {
+          $className = basename($classDir);
+          $posteDirs = array_filter(glob($classDir . '/*'), 'is_dir');
+          foreach ($posteDirs as $posteDir) {
+            $files = glob($posteDir . '/*.zip');
+            $count = count($files);
+            if ($count === 0) continue;
+            // Cherche si un examen correspond à cette date
+            foreach ($stats_per_exam as $k => $ex) {
+              // Comparaison souple : date au format YYYYMMDD == YYYY-MM-DD transformée
+              $exDate = str_replace('-', '', $ex['date']);
+              if ($exDate === $dateName) {
+                $stats_per_exam[$k]['actual_uploads'] += $count;
+                if (!in_array($className, $stats_per_exam[$k]['classes_with_uploads'])) {
+                  $stats_per_exam[$k]['classes_with_uploads'][] = $className;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    // #27 Détection de doublons : regroupe les hashs identiques
+    $duplicate_hashes = [];
+    $hashes_file = __DIR__ . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'hashes.log';
+    if (file_exists($hashes_file)) {
+      $lines = @file($hashes_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+      $hash_to_uploads = [];
+      foreach ($lines as $line) {
+        $parts = explode(' | ', $line, 6);
+        if (count($parts) < 6) continue;
+        $hashes_json = $parts[5];
+        $hashes = @json_decode($hashes_json, true);
+        if (!is_array($hashes)) continue;
+        foreach ($hashes as $h) {
+          $hk = $h['hash'] ?? '';
+          if ($hk === '') continue;
+          if (!isset($hash_to_uploads[$hk])) {
+            $hash_to_uploads[$hk] = [
+              'hash' => $hk,
+              'name' => $h['name'] ?? '',
+              'uploads' => []
+            ];
+          }
+          $hash_to_uploads[$hk]['uploads'][] = [
+            'date' => $parts[0],
+            'ip' => $parts[1],
+            'classe' => $parts[2],
+            'poste' => $parts[3],
+            'file' => $parts[4]
+          ];
+        }
+      }
+      foreach ($hash_to_uploads as $entry) {
+        if (count($entry['uploads']) > 1) {
+          $duplicate_hashes[] = $entry;
+        }
+      }
+    }
+    json_response([
+      'stats_per_exam' => array_values($stats_per_exam),
+      'duplicate_hashes' => $duplicate_hashes
+    ]);
     break;
 
   case 'open_folder':

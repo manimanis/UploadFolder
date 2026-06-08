@@ -88,6 +88,9 @@ session_start();
           <button class="admin-tab" :class="{ active: activeTab === 'exams' }"
             @click="activeTab = 'exams'; initExamsTab()">📋
             Examens</button>
+          <button class="admin-tab" :class="{ active: activeTab === 'examstats' }"
+            @click="activeTab = 'examstats'; loadExamStats()">📈
+            Suivi</button>
         </div>
 
         <div class="row mb-4">
@@ -357,6 +360,59 @@ session_start();
           </div>
           <div v-else class="table-section text-center text-muted py-5">
             <p>Aucune entrée de journal.</p>
+          </div>
+        </template>
+
+        <!-- TAB: Suivi par examen (#28) -->
+        <template v-if="activeTab === 'examstats'">
+          <div class="table-section">
+            <h5>📈 Suivi des examens</h5>
+            <p class="text-muted" style="font-size: 0.9rem">
+              Visualisez combien d'élèves ont rendu leur travail pour chaque examen planifié.
+            </p>
+            <div v-if="examStats.length === 0" class="text-muted py-3">
+              Aucun examen planifié.
+            </div>
+            <div v-for="exam in examStats" :key="exam.id" class="exam-stat-row">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <div>
+                  <strong>{{ exam.name }}</strong>
+                  <span class="text-muted ms-2" style="font-size: 0.85rem">
+                    {{ exam.subject }} — {{ exam.date }} {{ exam.time_start }}–{{ exam.time_end }}
+                  </span>
+                </div>
+                <span class="badge" :class="examCompletionPercent(exam) >= 100 ? 'bg-success' : 'bg-primary'">
+                  {{ exam.actual_uploads }} / {{ exam.expected_uploads }}
+                </span>
+              </div>
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar" :class="examCompletionPercent(exam) >= 100 ? 'bg-success' : 'bg-primary'"
+                  :style="{ width: examCompletionPercent(exam) + '%' }"></div>
+              </div>
+              <div class="text-muted mt-1" style="font-size: 0.8rem">
+                Classes : {{ (exam.classes_with_uploads || []).join(', ') || 'aucune' }}
+                <span v-if="(exam.classes_with_uploads || []).length < (exam.classes || []).length">
+                  (manquant : {{ (exam.classes || []).filter(c => !(exam.classes_with_uploads || []).includes(c)).join(', ') }})
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- #27 Détection de doublons -->
+          <div class="table-section" v-if="duplicateHashes.length > 0">
+            <h5>🔍 Fichiers en doublon détectés</h5>
+            <p class="text-muted" style="font-size: 0.9rem">
+              Les fichiers suivants ont une empreinte SHA-256 identique et pourraient indiquer un plagiat.
+            </p>
+            <div v-for="dup in duplicateHashes" :key="dup.hash" class="duplicate-row">
+              <code class="d-block text-truncate" style="font-size: 0.8rem">{{ dup.hash }}</code>
+              <strong>{{ dup.name }}</strong> — {{ dup.uploads.length }} envois
+              <ul class="mt-1 mb-0" style="font-size: 0.85rem">
+                <li v-for="up in dup.uploads" :key="up.file">
+                  {{ up.date }} — classe <code>{{ up.classe }}</code>, poste <code>{{ up.poste }}</code> (IP <code>{{ up.ip }}</code>)
+                </li>
+              </ul>
+            </div>
           </div>
         </template>
 

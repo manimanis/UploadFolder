@@ -109,6 +109,31 @@ if (file_exists($rate_file)) {
 }
 file_put_contents($rate_file, (string) $now);
 
+// --- Nettoyage périodique des fichiers de rate-limit expirés (1% de chance) ---
+if (mt_rand(1, 100) === 1) {
+  cleanup_expired_rate_files($rate_limit_seconds);
+}
+
+/**
+ * Supprime les fichiers de rate-limit dont la date d'expiration est dépassée.
+ * Appelé aléatoirement à chaque upload pour ne pas pénaliser les performances.
+ */
+function cleanup_expired_rate_files(int $ttl): void
+{
+  $pattern = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'upload_rate_*';
+  $files = glob($pattern);
+  if ($files === false) return;
+  $now = time();
+  foreach ($files as $f) {
+    if (!is_file($f)) continue;
+    $mtime = (int) @filemtime($f);
+    // On supprime si expiré depuis au moins 5 minutes (marge de sécurité)
+    if ($mtime > 0 && ($now - $mtime) > ($ttl + 300)) {
+      @unlink($f);
+    }
+  }
+}
+
 // --- Validate required inputs ---
 $poste = empty($_POST['poste']) ? '' : sanitizePathComponent($_POST['poste']);
 $classe = empty($_POST['classe']) ? '' : sanitizePathComponent($_POST['classe']);
@@ -205,6 +230,20 @@ if (move_uploaded_file($upload_tmp, $upload_dir)) {
   // --- Journalisation des uploads ---
   $log_line = date('Y-m-d H:i:s') . ' | ' . $_SERVER['REMOTE_ADDR'] . ' | ' . $classe . ' | ' . $poste . ' | ' . $file_size . ' bytes | ' . basename($upload_dir) . PHP_EOL;
   @file_put_contents(__DIR__ . DIRECTORY_SEPARATOR . 'upload.log', $log_line, FILE_APPEND | LOCK_EX);
+
+  // --- Sauvegarde des hashs SHA-256 (anti-plagiat) si envoyés ---
+  if (!empty($_POST['hashes'])) {
+    $hashes = json_decode($_POST['hashes'], true);
+    if (is_array($hashes) && !empty($hashes)) {
+      $hashes_file = __DIR__ . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'hashes.log';
+      if (!is_dir(dirname($hashes_file))) {
+        @mkdir(dirname($hashes_file), 0755, true);
+      }
+      $hash_line = date('Y-m-d H:i:s') . ' | ' . $_SERVER['REMOTE_ADDR'] . ' | ' . $classe . ' | ' . $poste . ' | ' . basename($upload_dir) . ' | ' . json_encode($hashes, JSON_UNESCAPED_UNICODE) . PHP_EOL;
+      @file_put_contents($hashes_file, $hash_line, FILE_APPEND | LOCK_EX);
+    }
+  }
+
   jsonSuccess("Travail envoyé avec succès !");
 } else {
   jsonError("Erreur lors de l'enregistrement du fichier. Veuillez réessayer.");
