@@ -45,7 +45,6 @@ new Vue({
       classes: ''
     },
     showForm: false,
-    lang: I18n ? I18n.currentLang : 'fr',
     selectedTeacher: '',
     selectedClass: ''
   },
@@ -176,12 +175,6 @@ new Vue({
         return this.selectedTeacher ? exam.teacher === this.selectedTeacher : true;
       });
     },
-    t: function () {
-      var lang = this.lang;
-      return function (key) {
-        return I18n ? I18n.t(key) : key;
-      };
-    }
   },
   watch: {
     activeTab: function (tab) {
@@ -564,13 +557,6 @@ new Vue({
       }
       return '—';
     },
-
-    setLang: function (lang) {
-      this.lang = lang;
-      if (I18n) I18n.setLang(lang);
-      this.$forceUpdate();
-    },
-
 
     initExamsTab: function () {
       this.loadExams();

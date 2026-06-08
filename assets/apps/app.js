@@ -15,8 +15,6 @@ const app = new Vue({
     fichier: null,
     csrfToken: '',
     classeCustom: '',
-    lang: I18n ? I18n.currentLang : 'fr',
-
     // File size limit: 100 MB for the uncompressed data
     maxSizeBytes: 100 * 1024 * 1024
   },
@@ -53,9 +51,6 @@ const app = new Vue({
     },
     effectiveClasse: function () {
       return this.classe === 'Autre' ? this.classeCustom : this.classe;
-    },
-    _lang: function () {
-      return this.lang;
     }
   },
   methods: {
@@ -601,16 +596,5 @@ const app = new Vue({
       this.sendZipFile();
     },
 
-    setLang: function (lang) {
-      this.lang = lang;
-      if (I18n) I18n.setLang(lang);
-      this.$forceUpdate();
-    },
-
-    t: function (key) {
-      // Reference _lang to create reactive dependency
-      var _ = this._lang;
-      return I18n ? I18n.t(key) : key;
-    }
   }
 });
